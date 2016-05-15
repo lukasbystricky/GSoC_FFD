@@ -25,11 +25,12 @@ namespace FastFluidSolver
             FluidSolver ffd = new FluidSolver(omega, dt, nu, u0, v0, w0);
 
             while (t < tf)
-            {
+            {                
                 t += dt;
                 ffd.time_step();
-            }
 
+                Console.WriteLine("Time t = {0}", t);
+            }
         }
     }
 }

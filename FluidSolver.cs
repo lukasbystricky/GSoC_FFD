@@ -46,6 +46,8 @@ namespace FastFluidSolver
             u = u0;
             v = v0;
             w = w0;
+
+            p = new double[(int) Math.Pow(N, 3)];
         }
         /****************************************************************************
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
@@ -73,7 +75,7 @@ namespace FastFluidSolver
             {
                 for (int j = 0; j < N; j++)
                 {
-                    for (int k = 0; j < N; k++)
+                    for (int k = 0; k < N; k++)
                     {
                         div_w[cell_index(i, j, k)] = (u[cell_index(i + 1, j, k)] - u[cell_index(i - 1, j, k)] +
                             v[cell_index(i, j + 1, k)] - v[cell_index(i, j - 1, k)] + w[cell_index(i, j, k + 1)] +

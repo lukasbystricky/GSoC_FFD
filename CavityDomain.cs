@@ -8,17 +8,9 @@ namespace FastFluidSolver
 {
     class CavityDomain : Domain
     {
-        int N;
-        double h;
-        int[] boundary_nodes;   //flag to indicate if node is on a boundary
-        int[] obstacle;        //flag to indicate if node is part of an obstacle
-        int[] boundary_normal_x; //flag to indicate if boundary at node is normal to x direction
-        int[] boundary_normal_y; //flag to indicate if boundary at node is normal to y direction
-        int[] boundary_normal_z; //flag to indicate if boundary at node is normal to z direction
-        double[] boundary_u;   //x component of velocity at boundary
-        double[] boundary_v;   //y component of velocity at boundary
-        double[] boundary_w;   //z component of velocity at boundary
-
+        /***************************************************************************
+         * Constructor
+         **************************************************************************/
         public CavityDomain(int N)
         {
             this.N = N;
@@ -59,6 +51,24 @@ namespace FastFluidSolver
                     boundary_u[FluidSolver.cell_index(i, j, N)] = 1;
                 }
             }
+        }
+
+        /***********************************************************************
+         * Copy constructor
+         ***********************************************************************/
+        public CavityDomain(CavityDomain old)
+        {
+            N = old.N;
+            h = old.h;
+
+            boundary_nodes = old.boundary_nodes;
+            obstacle = old.obstacle;
+            boundary_normal_x = old.boundary_normal_x;
+            boundary_normal_y = old.boundary_normal_y;
+            boundary_normal_z = old.boundary_normal_z;
+            boundary_u = old.boundary_u;
+            boundary_v = old.boundary_v;
+            boundary_w = old.boundary_w;
         }
     }
 }
