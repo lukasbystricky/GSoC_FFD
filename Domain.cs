@@ -11,7 +11,7 @@ namespace FastFluidSolver
         int N;
         double h;
 
-        int[] bounary_nodes;   //flag to indicate if node is on a boundary
+        int[] boundary_nodes;   //flag to indicate if node is on a boundary
         int[] obstacle;        //flag to indicate if node is part of an obstacle
         int[] boundary_normal_x; //flag to indicate if boundary at node is normal to x direction
         int[] boundary_normal_y; //flag to indicate if boundary at node is normal to y direction

@@ -133,7 +133,7 @@ namespace FastFluidSolver
                             {
                                 double x_old = x[cell_index(i, j, k)];
 
-                                if (omega.bounary_nodes[cell_index(i, j, k)] == 0) //if not on boundary
+                                if (omega.boundary_nodes[cell_index(i, j, k)] == 0) //if not on boundary
                                 {
                                         
                                         x[cell_index(i, j, k)] = (b[cell_index(i, j, k)] - c * (x[cell_index(i - 1, j, k)] +
@@ -176,7 +176,7 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < N; k++)
                     {
-                        if (omega.bounary_nodes[cell_index(i, j, k)] == 1)
+                        if (omega.boundary_nodes[cell_index(i, j, k)] == 1)
                         {
                             u[cell_index(i, j, k)] = omega.boundary_u[cell_index(i, j, k)];
                             v[cell_index(i, j, k)] = omega.boundary_v[cell_index(i, j, k)];
@@ -190,7 +190,7 @@ namespace FastFluidSolver
         /***************************************************************************
          * Takes the x, y, z indices of a cell and returns the global coordinate
          **************************************************************************/
-        int cell_index(int x, int y, int z)
+        public static int cell_index(int x, int y, int z)
         {
             return (x >= 0 && y >=0 && z >= 0) ? x + y * N + z * N ^ 2 : 0;
         }
