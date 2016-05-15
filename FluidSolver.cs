@@ -22,15 +22,31 @@ namespace FastFluidSolver
         private double[] w_sratch;
 
         private double dt;  //time step
-        private int N;      //number of points in each coordiate direction
+        private static int N;      //number of points in each coordiate direction
         private double h;   //spacing in each corrdiate direction
         private double nu;  //fluid viscosity
 
         Domain omega;
 
-        void initialize();
-        void add_force();
+        void initialize() { }
+        void add_force() { }
 
+        /****************************************************************************
+         * Constructor
+         ****************************************************************************/
+        public FluidSolver(Domain omega, double dt, double nu, double[] u0, double[] v0, double[] w0)
+        {
+            N = omega.N;
+            h = omega.h;
+            this.dt = dt;
+            this.nu = nu;
+
+            this.omega = omega;
+
+            u = u0;
+            v = v0;
+            w = w0;
+        }
         /****************************************************************************
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
          * order finite difference in space and backwards Euler in time
@@ -196,7 +212,16 @@ namespace FastFluidSolver
         }
 
 
-        void export_vtk();
+        public void time_step()
+        {
+            diffuse(ref u);
+            diffuse(ref v);
+            diffuse(ref w);
+
+            project();
+        }
+
+        public void export_vtk() { }
 
     }
 }

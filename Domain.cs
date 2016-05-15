@@ -6,18 +6,18 @@ using System.Threading.Tasks;
 
 namespace FastFluidSolver
 {
-    interface Domain
+    abstract class Domain
     {
-        int N;
-        double h;
+        public int N;
+        public double h;
 
-        int[] boundary_nodes;   //flag to indicate if node is on a boundary
-        int[] obstacle;        //flag to indicate if node is part of an obstacle
-        int[] boundary_normal_x; //flag to indicate if boundary at node is normal to x direction
-        int[] boundary_normal_y; //flag to indicate if boundary at node is normal to y direction
-        int[] boundary_normal_z; //flag to indicate if boundary at node is normal to z direction
-        double[] boundary_u;   //x component of velocity at boundary
-        double[] boundary_v;   //y component of velocity at boundary
-        double[] boundary_w;   //z component of velocity at boundary
+        public int[] boundary_nodes;   //flag to indicate if node is on a boundary
+        public int[] obstacle;        //flag to indicate if node is part of an obstacle
+        public int[] boundary_normal_x; //flag to indicate if boundary at node is normal to x direction
+        public int[] boundary_normal_y; //flag to indicate if boundary at node is normal to y direction
+        public int[] boundary_normal_z; //flag to indicate if boundary at node is normal to z direction
+        public double[] boundary_u;   //x component of velocity at boundary
+        public double[] boundary_v;   //y component of velocity at boundary
+        public double[] boundary_w;   //z component of velocity at boundary
     }
 }

@@ -19,7 +19,7 @@ namespace FastFluidSolver
         double[] boundary_v;   //y component of velocity at boundary
         double[] boundary_w;   //z component of velocity at boundary
 
-        CavityDomain(int N)
+        public CavityDomain(int N)
         {
             this.N = N;
             h = 1.0 / N;
@@ -59,10 +59,6 @@ namespace FastFluidSolver
                     boundary_u[FluidSolver.cell_index(i, j, N)] = 1;
                 }
             }
-
-
-
-
         }
     }
 }
