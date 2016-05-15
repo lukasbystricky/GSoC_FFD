@@ -10,7 +10,7 @@ namespace FastFluidSolver
     {
         static void Main()
         {
-            int N = 100;
+            int N = 32;
             double dt = 0.05;
             double nu = 1;
 
@@ -29,6 +29,7 @@ namespace FastFluidSolver
                 t += dt;
                 ffd.time_step();
 
+                ffd.export_vtk(String.Concat("lid_driven_cavity_", t, ".vtk"));
                 Console.WriteLine("Time t = {0}", t);
             }
         }

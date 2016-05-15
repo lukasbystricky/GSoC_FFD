@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -213,7 +214,9 @@ namespace FastFluidSolver
             return (x >= 0 && y >=0 && z >= 0) ? x + y * N + z * N ^ 2 : 0;
         }
 
-
+        /*****************************************************************************
+         * Perform a single time step
+         *****************************************************************************/
         public void time_step()
         {
             diffuse(ref u);
@@ -223,7 +226,36 @@ namespace FastFluidSolver
             project();
         }
 
-        public void export_vtk() { }
+        /*****************************************************************************
+         * Export data to a VTK file for visualization
+         ****************************************************************************/
+        public void export_vtk(String fname) 
+        {
+            using (StreamWriter sw = new StreamWriter(fname))
+            {
+                sw.WriteLine("# vtk DataFile Version 3.0");
+                sw.WriteLine("Fast Fluid Dynamics data\n");
+                sw.WriteLine("ASCII");
+                sw.WriteLine("DATASET STRUCTURED_POINTS");
+                sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);//TO DO change to accept different domain sizes
+                sw.WriteLine("ORIGIN {0} {1} {2}", 0, 0, 0);
+                sw.WriteLine("SPACING {0} {1} {2}", h, h, h);
+
+                sw.WriteLine("POINT_DATA {0}", Math.Pow(N, 3));
+                sw.WriteLine("VECTORS velocity double");
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0} {1} {2}", u[cell_index(i, j, k)], v[cell_index(i, j, k)], w[cell_index(i, j, k)]);
+                        }
+                    }
+                }
+
+            }
+        }
 
     }
 }
