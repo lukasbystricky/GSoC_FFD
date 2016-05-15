@@ -58,14 +58,14 @@ namespace FastFluidSolver
         {
             double[] x_old = x;
             apply_boundary_conditions();
+
+            //export_vtk("bc_test.vtk");
             gs_solve(1 + 6 * nu * dt / Math.Pow(h, 2), dt * nu / Math.Pow(h, 2), x_old, ref x, 0);
         }
 
         /*****************************************************************************
          * Projection step. Solves Poisson equation L(p) = div(u_old) using second order finte
          * difference and updates the velocities, u = u_old - grad(p)
-         * 
-         * TO DO: add boundary conditions
          ****************************************************************************/
         void project()
         {
@@ -78,9 +78,73 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < N; k++)
                     {
-                        div_w[cell_index(i, j, k)] = (u[cell_index(i + 1, j, k)] - u[cell_index(i - 1, j, k)] +
-                            v[cell_index(i, j + 1, k)] - v[cell_index(i, j - 1, k)] + w[cell_index(i, j, k + 1)] +
-                            w[cell_index(i, j, k - 1)]) / (2 * h);
+                        if (omega.obstacle[cell_index(i, j, k, N)] == 0) //node not inside an obstacle
+                        {
+                            if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //node not on boundary, use second order finite differnce
+                            {
+                                div_w[cell_index(i, j, k, N)] = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i - 1, j, k, N)] +
+                                    v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j - 1, k, N)] + w[cell_index(i, j, k + 1, N)] +
+                                    w[cell_index(i, j, k - 1, N)]) / (2 * h);
+                            }
+                            else //use first order finite difference
+                            {
+                                int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                int ny = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                int nz = omega.boundary_normal_x[cell_index(i, j, k, N)];
+
+                                //calculate each partial derivative individually
+                                double ux = 0;
+                                double vy = 0;
+                                double wz = 0;
+
+                                switch (nx)
+                                {
+                                    case 0:
+                                        ux = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i - 1, j, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        ux = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i, j, k, N)]) /h;
+                                        break;
+
+                                    case 1:
+                                        ux = (u[cell_index(i, j, k, N)] - u[cell_index(i - 1, j, k, N)]) / h;
+                                        break;
+                                }
+
+                                switch (ny)
+                                {
+                                    case 0:
+                                        vy = (v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j - 1, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        vy = (v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j, k, N)]) / h;
+                                        break;
+
+                                    case 1:
+                                        vy = (v[cell_index(i, j, k, N)] - v[cell_index(i, j - 1, k, N)]) / h;
+                                        break;
+                                }
+
+                                switch (nz)
+                                {
+                                    case 0:
+                                        wz = (w[cell_index(i, j + 1, k, N)] - w[cell_index(i, j - 1, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        wz = (w[cell_index(i, j, k + 1, N)] - w[cell_index(i, j, k, N)]) / h;
+                                        break;
+
+                                    case 1:
+                                        wz = (w[cell_index(i, j, k, N)] - w[cell_index(i, j, k - 1, N)]) / h;
+                                        break;
+                                }
+
+                                div_w[cell_index(i, j, k, N)] = ux + vy + wz;
+                            }
+                        }
                     }
                 }
             }
@@ -94,9 +158,76 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < N; k++)
                     {
-                        u[cell_index(i, j, k)] -= (p[cell_index(i + 1, j, k)] - p[cell_index(i - 1, j, k)]) / (2 * h);
-                        v[cell_index(i, j, k)] -= (p[cell_index(i, j + 1, k)] - p[cell_index(i, j - 1, k)]) / (2 * h);
-                        u[cell_index(i, j, k)] -= (p[cell_index(i, j, k + 1)] - p[cell_index(i, j, k - 1)]) / (2 * h);
+                        if (omega.obstacle[cell_index(i, j, k, N)] == 0) //node not inside an obstacle
+                        {
+                            if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //node not on boundary, use second order finite differnce
+                            {
+                                u[cell_index(i, j, k, N)] -= (p[cell_index(i + 1, j, k, N)] - p[cell_index(i - 1, j, k, N)]) / (2 * h);
+                                v[cell_index(i, j, k, N)] -= (p[cell_index(i, j + 1, k, N)] - p[cell_index(i, j - 1, k, N)]) / (2 * h);
+                                w[cell_index(i, j, k, N)] -= (p[cell_index(i, j, k + 1, N)] - p[cell_index(i, j, k - 1, N)]) / (2 * h);
+                            }
+                            else //use first order finite differnce
+                            {
+
+                                int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                int ny = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                int nz = omega.boundary_normal_x[cell_index(i, j, k, N)];
+
+                                //calculate each partial derivative individually
+                                double px = 0;
+                                double py = 0;
+                                double pz = 0;
+
+                                switch (nx)
+                                {
+                                    case 0:
+                                        px = (p[cell_index(i + 1, j, k, N)] - p[cell_index(i - 1, j, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        px = (p[cell_index(i + 1, j, k, N)] - p[cell_index(i, j, k, N)]) / h;
+                                        break;
+
+                                    case 1:
+                                        px = (p[cell_index(i, j, k, N)] - p[cell_index(i - 1, j, k, N)]) / h;
+                                        break;
+                                }
+
+                                switch (ny)
+                                {
+                                    case 0:
+                                        py = (p[cell_index(i, j + 1, k, N)] - p[cell_index(i, j - 1, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        py = (p[cell_index(i, j + 1, k, N)] - p[cell_index(i, j, k, N)]) / h;
+                                        break;
+
+                                    case 1:
+                                        py = (p[cell_index(i, j, k, N)] - p[cell_index(i, j - 1, k, N)]) / h;
+                                        break;
+                                }
+
+                                switch (nz)
+                                {
+                                    case 0:
+                                        pz = (w[cell_index(i, j + 1, k, N)] - p[cell_index(i, j - 1, k, N)]) / (2 * h);
+                                        break;
+
+                                    case -1:
+                                        pz = (p[cell_index(i, j, k + 1, N)] - p[cell_index(i, j, k, N)]) / h;
+                                        break;
+
+                                    case 1:
+                                        pz = (p[cell_index(i, j, k, N)] - p[cell_index(i, j, k - 1, N)]) / h;
+                                        break;
+                                }
+
+                                u[cell_index(i, j, k, N)] -= px;
+                                v[cell_index(i, j, k, N)] -= py;
+                                w[cell_index(i, j, k, N)] -= pz;
+                            }
+                        }
                     }
                 }
             }
@@ -148,32 +279,32 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < N; k++)
                         {
-                            if (omega.obstacle[cell_index(i, j, k)] == 0) //if part of fluid domain
+                            if (omega.obstacle[cell_index(i, j, k, N)] == 0) //if part of fluid domain
                             {
-                                double x_old = x[cell_index(i, j, k)];
+                                double x_old = x[cell_index(i, j, k, N)];
 
-                                if (omega.boundary_nodes[cell_index(i, j, k)] == 0) //if not on boundary
+                                if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //if not on boundary
                                 {
-                                        
-                                        x[cell_index(i, j, k)] = (b[cell_index(i, j, k)] - c * (x[cell_index(i - 1, j, k)] +
-                                            x[cell_index(i + 1, j, k)] + x[cell_index(i, j - 1, k)] + x[cell_index(i, j + 1, k)] +
-                                            x[cell_index(i, j, k - 1)] + x[cell_index(i, j, k + 1)])) / a;
+
+                                    x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (x[cell_index(i - 1, j, k, N)] +
+                                            x[cell_index(i + 1, j, k, N)] + x[cell_index(i, j - 1, k, N)] + x[cell_index(i, j + 1, k, N)] +
+                                            x[cell_index(i, j, k - 1, N)] + x[cell_index(i, j, k + 1, N)])) / a;
                                 }
                                 else if (boundary_type == 1)//if on boundary and homogeneous Neumann boundary conditions
                                 {
-                                        int nx = omega.boundary_normal_x[cell_index(i, j, k)];
-                                        int ny = omega.boundary_normal_x[cell_index(i, j, k)];
-                                        int nz = omega.boundary_normal_x[cell_index(i, j, k)];
+                                    int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                    int ny = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                    int nz = omega.boundary_normal_x[cell_index(i, j, k, N)];
 
-                                        x[cell_index(i, j, k)] = (b[cell_index(i, j, k)] - c * (Math.Abs(1 + nx) * x[cell_index(i - 1, j, k)] +
-                                            Math.Abs(1 - nx) * x[cell_index(i + 1, j, k)] + Math.Abs(1 + ny) * x[cell_index(i, j - 1, k)] +
-                                            Math.Abs(1 - ny) * x[cell_index(i, j + 1, k)] + Math.Abs(1 + nz) * x[cell_index(i, j, k - 1)] +
-                                            Math.Abs(1 - nz) * x[cell_index(i, j, k + 1)])) / a;
+                                    x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (Math.Abs(1 + nx) * x[cell_index(i - 1, j, k, N)] +
+                                            Math.Abs(1 - nx) * x[cell_index(i + 1, j, k, N)] + Math.Abs(1 + ny) * x[cell_index(i, j - 1, k, N)] +
+                                            Math.Abs(1 - ny) * x[cell_index(i, j + 1, k, N)] + Math.Abs(1 + nz) * x[cell_index(i, j, k - 1, N)] +
+                                            Math.Abs(1 - nz) * x[cell_index(i, j, k + 1, N)])) / a;
 
                                        
-                                } 
-                                    
-                                    res = res + Math.Pow(x_old - x[cell_index(i, j, k)], 2) / Math.Pow(N, 3);
+                                }
+
+                                res = res + Math.Pow(x_old - x[cell_index(i, j, k, N)], 2) / Math.Pow(N, 3);
                                     break;
                                 }
                             }
@@ -195,11 +326,11 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < N; k++)
                     {
-                        if (omega.boundary_nodes[cell_index(i, j, k)] == 1)
+                        if (omega.boundary_nodes[cell_index(i, j, k, N)] == 1)
                         {
-                            u[cell_index(i, j, k)] = omega.boundary_u[cell_index(i, j, k)];
-                            v[cell_index(i, j, k)] = omega.boundary_v[cell_index(i, j, k)];
-                            w[cell_index(i, j, k)] = omega.boundary_w[cell_index(i, j, k)];
+                            u[cell_index(i, j, k, N)] = omega.boundary_u[cell_index(i, j, k, N)];
+                            v[cell_index(i, j, k, N)] = omega.boundary_v[cell_index(i, j, k, N)];
+                            w[cell_index(i, j, k, N)] = omega.boundary_w[cell_index(i, j, k, N)];
                         }
                     }
                 }
@@ -209,9 +340,9 @@ namespace FastFluidSolver
         /***************************************************************************
          * Takes the x, y, z indices of a cell and returns the global coordinate
          **************************************************************************/
-        public static int cell_index(int x, int y, int z)
+        public static int cell_index(int x, int y, int z, int N)
         {
-            return (x >= 0 && y >=0 && z >= 0) ? x + y * N + z * N ^ 2 : 0;
+            return (x >= 0 && y >= 0 && z >= 0 && x < N && y < N && z < N) ? x + y * N + z * (int)Math.Pow(N, 2) : 0;
         }
 
         /*****************************************************************************
@@ -227,7 +358,8 @@ namespace FastFluidSolver
         }
 
         /*****************************************************************************
-         * Export data to a VTK file for visualization
+         * Export data to a VTK file for visualization, based on file format guide here:
+         * http://www.vtk.org/wp-content/uploads/2015/04/file-formats.pdf
          ****************************************************************************/
         public void export_vtk(String fname) 
         {
@@ -249,7 +381,20 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < N; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", u[cell_index(i, j, k)], v[cell_index(i, j, k)], w[cell_index(i, j, k)]);
+                            sw.WriteLine("{0} {1} {2}", omega.boundary_u[cell_index(i, j, k, N)], v[cell_index(i, j, k, N)], w[cell_index(i, j, k, N)]);
+                        }
+                    }
+                }
+
+                sw.WriteLine("SCALARS pressure double {0}", 1);
+                sw.WriteLine("LOOKUP_TABLE default");
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0}", p[cell_index(i, j, k, N)]);
                         }
                     }
                 }

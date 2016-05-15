@@ -25,30 +25,32 @@ namespace FastFluidSolver
             boundary_v = new double[(int)Math.Pow(N, 3)];
             boundary_w = new double[(int)Math.Pow(N, 3)];
 
-            //C# default values for int or double arrays are 0, so now we only need to set nonzero fields
+            //C# default values for int or double arrays are 0, so we only need to set nonzero fields
             for (int i = 0; i < N; i++)
             {
                 for (int j = 0; j < N; j++)
                 {
-                    boundary_nodes[FluidSolver.cell_index(0, i, j)] = 1;
-                    boundary_nodes[FluidSolver.cell_index(N, i, j)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(0, i, j, N)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(N - 1, i, j, N)] = 1;
 
-                    boundary_normal_x[FluidSolver.cell_index(0, i, j)] = -1;
-                    boundary_normal_x[FluidSolver.cell_index(0, i, j)] = 1;
+                    boundary_normal_x[FluidSolver.cell_index(0, i, j, N)] = -1;
+                    boundary_normal_x[FluidSolver.cell_index(N - 1, i, j, N)] = 1;
 
-                    boundary_nodes[FluidSolver.cell_index(i, 0, j)] = 1;
-                    boundary_nodes[FluidSolver.cell_index(i, N, j)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(i, 0, j, N)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(i, N - 1, j, N)] = 1;
 
-                    boundary_normal_y[FluidSolver.cell_index(i, 0, j)] = -1;
-                    boundary_normal_y[FluidSolver.cell_index(i, N, j)] = 1;
+                    boundary_normal_y[FluidSolver.cell_index(i, 0, j, N)] = -1;
+                    boundary_normal_y[FluidSolver.cell_index(i, N - 1, j, N)] = 1;
 
-                    boundary_nodes[FluidSolver.cell_index(i, j, 0)] = 1;
-                    boundary_nodes[FluidSolver.cell_index(i, j, N)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(i, j, 0, N)] = 1;
+                    boundary_nodes[FluidSolver.cell_index(i, j, N - 1, N)] = 1;
 
-                    boundary_normal_z[FluidSolver.cell_index(i, j, 0)] = -1;
-                    boundary_normal_z[FluidSolver.cell_index(i, j, N)] = 1;
+                    boundary_normal_z[FluidSolver.cell_index(i, j, 0, N)] = -1;
+                    boundary_normal_z[FluidSolver.cell_index(i, j, N - 1, N)] = 1;
 
-                    boundary_u[FluidSolver.cell_index(i, j, N)] = 1;
+                    boundary_u[FluidSolver.cell_index(i, j, N - 1, N)] = 1;
+
+                   // Console.WriteLine("i={0}, j={1}, ij = {2}", i, j, FluidSolver.cell_index(i, j, N, N));
                 }
             }
         }
