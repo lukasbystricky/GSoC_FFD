@@ -22,15 +22,16 @@ namespace FastFluidSolver
             double[] w0 = new double[(int)Math.Pow(N, 3)];
 
             CavityDomain omega = new CavityDomain(N);
-            FluidSolver ffd = new FluidSolver(omega, dt, nu, u0, v0, w0);
+            FluidSolver ffd = new FluidSolver(omega, dt, nu, u0, v0, w0, true);
 
             while (t < tf)
-            {                
+            {
+                Console.WriteLine("Time t = {0}", t);                
                 t += dt;
                 ffd.time_step();
 
                 ffd.export_vtk(String.Concat("lid_driven_cavity_", t, ".vtk"));
-                Console.WriteLine("Time t = {0}", t);
+                
             }
         }
     }

@@ -23,9 +23,11 @@ namespace FastFluidSolver
         private double[] w_sratch;
 
         private double dt;  //time step
-        private static int N;      //number of points in each coordiate direction
+        private static int N; //number of points in each coordiate direction
         private double h;   //spacing in each corrdiate direction
         private double nu;  //fluid viscosity
+
+        private bool verbose;
 
         Domain omega;
 
@@ -35,7 +37,7 @@ namespace FastFluidSolver
         /****************************************************************************
          * Constructor
          ****************************************************************************/
-        public FluidSolver(Domain omega, double dt, double nu, double[] u0, double[] v0, double[] w0)
+        public FluidSolver(Domain omega, double dt, double nu, double[] u0, double[] v0, double[] w0, bool verbose)
         {
             N = omega.N;
             h = omega.h;
@@ -43,6 +45,7 @@ namespace FastFluidSolver
             this.nu = nu;
 
             this.omega = omega;
+            this.verbose = verbose;
 
             u = u0;
             v = v0;
@@ -60,7 +63,7 @@ namespace FastFluidSolver
             apply_boundary_conditions();
 
             //export_vtk("bc_test.vtk");
-            gs_solve(1 + 6 * nu * dt / Math.Pow(h, 2), dt * nu / Math.Pow(h, 2), x_old, ref x, 0);
+            gs_solve(1 + 6 * nu * dt / Math.Pow(h, 2), -dt * nu / Math.Pow(h, 2), x_old, ref x, 0);
         }
 
         /*****************************************************************************
@@ -149,7 +152,7 @@ namespace FastFluidSolver
                 }
             }
 
-            gs_solve(6 / Math.Pow(h, 2), 1 / Math.Pow(h, 2), div_w, ref p, 1);
+            gs_solve(6 / Math.Pow(h, 2), -1 / Math.Pow(h, 2), div_w, ref p, 1);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
             for (int i = 0; i < N; i++)
@@ -231,7 +234,6 @@ namespace FastFluidSolver
                     }
                 }
             }
-
         }
 
         /***************************************************************************
@@ -268,7 +270,7 @@ namespace FastFluidSolver
         {
 
             int iter = 0;
-            double res = 2*TOL;
+            double res = 2 * TOL;
             while (iter < MAX_ITER && res > TOL)
             {
                 res = 0;
@@ -285,7 +287,6 @@ namespace FastFluidSolver
 
                                 if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //if not on boundary
                                 {
-
                                     x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (x[cell_index(i - 1, j, k, N)] +
                                             x[cell_index(i + 1, j, k, N)] + x[cell_index(i, j - 1, k, N)] + x[cell_index(i, j + 1, k, N)] +
                                             x[cell_index(i, j, k - 1, N)] + x[cell_index(i, j, k + 1, N)])) / a;
@@ -301,19 +302,24 @@ namespace FastFluidSolver
                                             Math.Abs(1 - ny) * x[cell_index(i, j + 1, k, N)] + Math.Abs(1 + nz) * x[cell_index(i, j, k - 1, N)] +
                                             Math.Abs(1 - nz) * x[cell_index(i, j, k + 1, N)])) / a;
 
-                                       
+
                                 }
 
                                 res = res + Math.Pow(x_old - x[cell_index(i, j, k, N)], 2) / Math.Pow(N, 3);
-                                    break;
-                                }
                             }
                         }
                     }
                 }
 
                 res = Math.Sqrt(res);
+                iter++;
             }
+
+            if (verbose)
+            {
+                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", res, iter);
+            }
+        }
 
         /*********************************************************************************
          * Applies the boundary conditions from omega to the velocities
@@ -381,7 +387,7 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < N; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", omega.boundary_u[cell_index(i, j, k, N)], v[cell_index(i, j, k, N)], w[cell_index(i, j, k, N)]);
+                            sw.WriteLine("{0} {1} {2}", u[cell_index(i, j, k, N)], v[cell_index(i, j, k, N)], w[cell_index(i, j, k, N)]);
                         }
                     }
                 }
@@ -395,6 +401,45 @@ namespace FastFluidSolver
                         for (int k = 0; k < N; k++)
                         {
                             sw.WriteLine("{0}", p[cell_index(i, j, k, N)]);
+                        }
+                    }
+                }
+
+                sw.WriteLine("SCALARS nx int {0}", 1);
+                sw.WriteLine("LOOKUP_TABLE default");
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0}", omega.boundary_normal_x[cell_index(i, j, k, N)]);
+                        }
+                    }
+                }
+
+                sw.WriteLine("SCALARS ny int {0}", 1);
+                sw.WriteLine("LOOKUP_TABLE default");
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0}", omega.boundary_normal_y[cell_index(i, j, k, N)]);
+                        }
+                    }
+                }
+
+                sw.WriteLine("SCALARS nz int {0}", 1);
+                sw.WriteLine("LOOKUP_TABLE default");
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0}", omega.boundary_normal_z[cell_index(i, j, k, N)]);
                         }
                     }
                 }
