@@ -14,7 +14,7 @@ namespace FastFluidSolver
         public CavityDomain(int N)
         {
             this.N = N;
-            h = 1.0 / N;
+            h = 1.0 / (N - 1);
 
             boundary_nodes = new int[(int) Math.Pow(N,3)];
             obstacle = new int[(int)Math.Pow(N, 3)];
@@ -49,8 +49,6 @@ namespace FastFluidSolver
                     boundary_normal_z[FluidSolver.cell_index(i, j, N - 1, N)] = 1;
 
                     boundary_u[FluidSolver.cell_index(i, j, N - 1, N)] = 1;
-
-                   // Console.WriteLine("i={0}, j={1}, ij = {2}", i, j, FluidSolver.cell_index(i, j, N, N));
                 }
             }
         }
