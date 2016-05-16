@@ -154,6 +154,7 @@ namespace FastFluidSolver
             gs_solve(-6 / Math.Pow(h, 2), 1 / Math.Pow(h, 2), div, ref p, 1);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
+            //only need to add to interior points, as the velocity at boundary points has already been fixed
             for (int i = 0; i < N; i++)
             {
                 for (int j = 0; j < N; j++)
@@ -201,8 +202,6 @@ namespace FastFluidSolver
          * double[] b - right hand side
          * double[] x - reference to array in which to store solution
          * int boundary type - 0 corresponds to Dirichlet, 1 to homogeneous Neumann 
-         * 
-         * TO DO: add boundary conditions
          ****************************************************************************/
         void gs_solve(double a, double c, double[] b, ref double[] x, int boundary_type)
         {
@@ -218,11 +217,11 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < N; k++)
                         {
-                            if (omega.obstacle[cell_index(i, j, k, N)] == 0) //if part of fluid domain
+                            if (omega.obstacle[cell_index(i, j, k, N)] == 0) //if node not inside obstacle
                             {
                                 double x_old = x[cell_index(i, j, k, N)];
 
-                                if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //if not on boundary
+                                if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //if not on boundary, second order finite difference
                                 {
                                     x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (x[cell_index(i - 1, j, k, N)] +
                                             x[cell_index(i + 1, j, k, N)] + x[cell_index(i, j - 1, k, N)] + x[cell_index(i, j + 1, k, N)] +
@@ -258,7 +257,7 @@ namespace FastFluidSolver
         }
 
         /*********************************************************************************
-         * Applies the boundary conditions from omega to the velocities
+         * Applies the boundary conditions from the domain omega to the velocities
          ********************************************************************************/
         void apply_boundary_conditions()
         {
@@ -312,10 +311,23 @@ namespace FastFluidSolver
                 sw.WriteLine("# vtk DataFile Version 3.0");
                 sw.WriteLine("Fast Fluid Dynamics data\n");
                 sw.WriteLine("ASCII");
-                sw.WriteLine("DATASET STRUCTURED_POINTS");
+                /*sw.WriteLine("DATASET STRUCTURED_POINTS");
                 sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);//TO DO change to accept different domain sizes
                 sw.WriteLine("ORIGIN {0} {1} {2}", 0, 0, 0);
-                sw.WriteLine("SPACING {0} {1} {2}", h, h, h);
+                sw.WriteLine("SPACING {0} {1} {2}", h, h, h);*/
+                sw.WriteLine("DATASET STRUCTURED_GRID");
+                sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);
+                sw.WriteLine("POINTS {0} double", Math.Pow(N, 3));
+                for (int i = 0; i < N; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        for (int k = 0; k < N; k++)
+                        {
+                            sw.WriteLine("{0} {1} {2}", h * i, h * j, h * k);
+                        }
+                    }
+                }
 
                 sw.WriteLine("POINT_DATA {0}", Math.Pow(N, 3));
                 sw.WriteLine("VECTORS velocity double");
