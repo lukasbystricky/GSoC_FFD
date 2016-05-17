@@ -91,8 +91,8 @@ namespace FastFluidSolver
                             else //use first order finite difference
                             {
                                 int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                int ny = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                int nz = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                int ny = omega.boundary_normal_y[cell_index(i, j, k, N)];
+                                int nz = omega.boundary_normal_z[cell_index(i, j, k, N)];
 
                                 //calculate each partial derivative individually
                                 double ux = 0;
@@ -182,11 +182,11 @@ namespace FastFluidSolver
          * double[] x - reference to quantity to advect, can be a velocity, a
          * concentration or temperature
          * double[] x0 - initial state of x before advection
-         * double[] velx - x velocity (either before convection if x is a velocity.
+         * double[] velx - x velocity (either before advection if x is a velocity.
          * or after convection otherwise)
-         * double[] vely - y velocity (either before convection if x is a velocity.
+         * double[] vely - y velocity (either before advection if x is a velocity.
          * or after convection otherwise)
-         * double[] velz - z velocity (either before convection if x is a velocity.
+         * double[] velz - z velocity (either before advection if x is a velocity.
          * or after convection otherwise)
          **************************************************************************/
         void advect(ref double[] x, double[] x0, double[] velx, double[] vely,  double[] velz)
@@ -202,6 +202,8 @@ namespace FastFluidSolver
          * double[] b - right hand side
          * double[] x - reference to array in which to store solution
          * int boundary type - 0 corresponds to Dirichlet, 1 to homogeneous Neumann 
+         * 
+         * TO DO: add Jacobi solver, which can be run on multiple cores
          ****************************************************************************/
         void gs_solve(double a, double c, double[] b, ref double[] x, int boundary_type)
         {
@@ -230,8 +232,8 @@ namespace FastFluidSolver
                                 else if (boundary_type == 1)//if on boundary and homogeneous Neumann boundary conditions
                                 {
                                     int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                    int ny = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                    int nz = omega.boundary_normal_x[cell_index(i, j, k, N)];
+                                    int ny = omega.boundary_normal_y[cell_index(i, j, k, N)];
+                                    int nz = omega.boundary_normal_z[cell_index(i, j, k, N)];
 
                                     x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (Math.Abs(1 + nx) * x[cell_index(i - 1, j, k, N)] +
                                             Math.Abs(1 - nx) * x[cell_index(i + 1, j, k, N)] + Math.Abs(1 + ny) * x[cell_index(i, j - 1, k, N)] +
@@ -278,6 +280,32 @@ namespace FastFluidSolver
             }
         }
 
+        /*****************************************************************************
+         * Performs a trilinear interpolation inside a cube with sides of length h
+         * @inputs:
+         * double x,y,z - the x,y and z coordinates of a point inside the box, with the 
+         * origin at one of the corners. All these coordinates must be between 0 and h
+         * double[] values - the values at the 8 corners of the cube. These must be 
+         * specified in the order:
+         * 1. i+1, j+1, k+1
+         * 2. i+1, j, k+1
+         * 3. i+1, j+1, k
+         * 4. i+1, j, k
+         * 5. i, j+1, k+1
+         * 6. i, j+1, k
+         * 7. i, j, k+1
+         * 8. i, j, k
+         ****************************************************************************/
+        double trilinear_interpolation(double x, double y, double z, double[] values)
+        {
+            double f = values[0] * (h - x) * (h - y) * (h - z) + values[1] * (h - x) * y * (h - z) + 
+                values[2] * (h - x) * (h - y) * z + values[3] * (h - x) * z + 
+                values[4] * x * (h - y) * (h - z) + values[5] * x * (h - y) * z + 
+                values[6] * x * y * (h - z) + values[7] * x * y * z;
+
+                return f;
+        }
+
         /***************************************************************************
          * Takes the x, y, z indices of a cell and returns the global coordinate
          **************************************************************************/
@@ -311,10 +339,6 @@ namespace FastFluidSolver
                 sw.WriteLine("# vtk DataFile Version 3.0");
                 sw.WriteLine("Fast Fluid Dynamics data\n");
                 sw.WriteLine("ASCII");
-                /*sw.WriteLine("DATASET STRUCTURED_POINTS");
-                sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);//TO DO change to accept different domain sizes
-                sw.WriteLine("ORIGIN {0} {1} {2}", 0, 0, 0);
-                sw.WriteLine("SPACING {0} {1} {2}", h, h, h);*/
                 sw.WriteLine("DATASET STRUCTURED_GRID");
                 sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);
                 sw.WriteLine("POINTS {0} double", Math.Pow(N, 3));
