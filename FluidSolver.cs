@@ -18,9 +18,9 @@ namespace FastFluidSolver
         private double[] w; // z component of velocity
         private double[] p; // pressure
 
-        private double[] u_sratch; //scratch arrays for velocities
-        private double[] v_sratch;
-        private double[] w_sratch;
+        private double[] u_scratch; //scratch arrays for velocities
+        private double[] v_scratch;
+        private double[] w_scratch;
 
         private double dt;  //time step
         private static int N; //number of points in each coordiate direction
@@ -52,6 +52,10 @@ namespace FastFluidSolver
             w = w0;
 
             p = new double[(int) Math.Pow(N, 3)];
+
+            u_scratch = new double[u0.Length];
+            v_scratch = new double[v0.Length];
+            w_scratch = new double[w0.Length];
         }
         /****************************************************************************
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
@@ -191,6 +195,41 @@ namespace FastFluidSolver
          **************************************************************************/
         void advect(ref double[] x, double[] x0, double[] velx, double[] vely,  double[] velz)
         {
+            double dispx, dispy, dispz;
+            int itmp, jtmp, ktmp;
+            double[] cube_values = new double[8];
+
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
+                {
+                    for (int k = 0; k < N; k++)
+                    {
+                        if ((omega.obstacle[cell_index(i, j, k, N)] == 0) &&
+                                (omega.boundary_nodes[cell_index(i, j, k, N)] == 0))
+                        {
+                            dispx = dt*velx[cell_index(i, j, k, N)] / h;
+                            dispy = dt*vely[cell_index(i, j, k, N)] / h;
+                            dispz = dt*velz[cell_index(i, j, k, N)] / h;
+
+                            itmp = (int)Math.Min(Math.Max(Math.Floor(i - dispx), 0), N - 2);
+                            jtmp = (int)Math.Min(Math.Max(Math.Floor(j - dispy), 0), N - 2);
+                            ktmp = (int)Math.Min(Math.Max(Math.Floor(k - dispz), 0), N - 2); 
+
+                            cube_values[0] = x0[cell_index(itmp + 1, jtmp + 1, ktmp + 1, N)];
+                            cube_values[1] = x0[cell_index(itmp + 1, jtmp + 1, ktmp + 1, N)];
+                            cube_values[2] = x0[cell_index(itmp + 1, jtmp, ktmp + 1, N)];
+                            cube_values[3] = x0[cell_index(itmp + 1, jtmp, ktmp, N)];
+                            cube_values[4] = x0[cell_index(itmp, jtmp + 1, ktmp + 1, N)];
+                            cube_values[5] = x0[cell_index(itmp, jtmp + 1, ktmp, N)];
+                            cube_values[6] = x0[cell_index(itmp, jtmp, ktmp + 1, N)];
+                            cube_values[7] = x0[cell_index(itmp, jtmp, ktmp, N)];
+
+                            x[cell_index(i, j, k, N)] = trilinear_interpolation(dispx % h, dispy % h, dispz % h, cube_values);
+                        }
+                    }
+                }
+            }
         }
 
         /*****************************************************************************
@@ -288,8 +327,8 @@ namespace FastFluidSolver
          * double[] values - the values at the 8 corners of the cube. These must be 
          * specified in the order:
          * 1. i+1, j+1, k+1
-         * 2. i+1, j, k+1
-         * 3. i+1, j+1, k
+         * 2. i+1, j+1, k
+         * 3. i+1, j, k+1
          * 4. i+1, j, k
          * 5. i, j+1, k+1
          * 6. i, j+1, k
@@ -298,10 +337,10 @@ namespace FastFluidSolver
          ****************************************************************************/
         double trilinear_interpolation(double x, double y, double z, double[] values)
         {
-            double f = values[0] * (h - x) * (h - y) * (h - z) + values[1] * (h - x) * y * (h - z) + 
-                values[2] * (h - x) * (h - y) * z + values[3] * (h - x) * z + 
-                values[4] * x * (h - y) * (h - z) + values[5] * x * (h - y) * z + 
-                values[6] * x * y * (h - z) + values[7] * x * y * z;
+            double f = (values[0] * (h - x) * (h - y) * (h - z) + values[1] * (h - x) * (h - y) * z +
+                values[2] * (h - x) * y * (h - z) + values[3] * (h - x) * y * z +
+                values[4] * x * (h - y) * (h - z) + values[5] * x * (h - y) * z +
+                values[6] * x * y * (h - z) + values[7] * x * y * z) / Math.Pow(h, 3);
 
                 return f;
         }
@@ -324,6 +363,16 @@ namespace FastFluidSolver
             diffuse(ref u);
             diffuse(ref v);
             diffuse(ref w);
+
+            project();
+
+            u.CopyTo(u_scratch, 0);
+            v.CopyTo(v_scratch, 0);
+            w.CopyTo(w_scratch, 0);
+
+            advect(ref u, u_scratch, u_scratch, v_scratch, w_scratch);
+            advect(ref v, v_scratch, u_scratch, v_scratch, w_scratch);
+            advect(ref w, w_scratch, u_scratch, v_scratch, w_scratch);
 
             project();
         }
