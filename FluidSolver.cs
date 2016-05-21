@@ -12,18 +12,23 @@ namespace FastFluidSolver
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
         const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
 
-        public double[] u { get; private set; } // x component of velocity
-        public double[] v { get; private set; }// y component of velocity
-        public double[] w { get; private set; } // z component of velocity
-        public double[] p { get; private set; } // pressure
+        public double[, ,] u { get; private set; } // x component of velocity
+        public double[, ,] v { get; private set; }// y component of velocity
+        public double[, ,] w { get; private set; } // z component of velocity
+        public double[, ,] p { get; private set; } // pressure
 
-        private double[] u_scratch; //scratch arrays for velocities
-        private double[] v_scratch;
-        private double[] w_scratch;
+        private double[, ,] u_scratch; //scratch arrays for velocities
+        private double[, ,] v_scratch;
+        private double[, ,] w_scratch;
 
         private double dt;  //time step
-        public static int N { get; private set; } //number of points in each coordiate direction
-        private double h;   //spacing in each corrdiate direction
+        public int Nx { get; private set; } //number of points in each x coordinate direction
+        public int Ny { get; private set; } //number of points in each y coordinate direction
+        public int Nz { get; private set; } //number of points in each z coordinate direction
+
+        private double hx;   //spacing in x coordinate direction
+        private double hy;   //spacing in x coordinate direction
+        private double hz;   //spacing in x coordinate direction
         private double nu;  //fluid viscosity
 
         private bool verbose;
@@ -36,10 +41,16 @@ namespace FastFluidSolver
         /****************************************************************************
          * Constructor
          ****************************************************************************/
-        public FluidSolver(Domain omega, double dt, double nu, double[] u0, double[] v0, double[] w0, bool verbose)
+        public FluidSolver(Domain omega, double dt, double nu, double[, ,] u0, double[, ,] v0, double[, ,] w0, bool verbose)
         {
-            N = omega.N;
-            h = omega.h;
+            Nx = omega.Nx;
+            Ny = omega.Ny;
+            Nz = omega.Nz;
+
+            hx = omega.hx;
+            hy = omega.hy;
+            hz = omega.hz;
+
             this.dt = dt;
             this.nu = nu;
 
@@ -50,11 +61,11 @@ namespace FastFluidSolver
             v = v0;
             w = w0;
 
-            p = new double[(int) Math.Pow(N, 3)];
+            p = new double[Nx, Ny, Nz];
 
-            u_scratch = new double[u0.Length];
-            v_scratch = new double[v0.Length];
-            w_scratch = new double[w0.Length];
+            u_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            v_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            w_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
         }
 
         /****************************************************************************
@@ -62,7 +73,14 @@ namespace FastFluidSolver
          ****************************************************************************/
         public FluidSolver(FluidSolver old)
         {
-            h = old.h;
+            Nx = old.Nx;
+            Ny = old.Ny;
+            Nz = old.Nz;
+
+            hx = old.hx;
+            hy = old.hy;
+            hz = old.hz;
+
             dt = old.dt;
             nu = old.nu;
 
@@ -71,9 +89,9 @@ namespace FastFluidSolver
             w = old.w;
             p = old.p;
 
-            u_scratch = new double[u.Length];
-            v_scratch = new double[v.Length];
-            w_scratch = new double[w.Length];
+            u_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            v_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            w_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
 
             verbose = old.verbose;
         }
@@ -82,9 +100,9 @@ namespace FastFluidSolver
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
          * order finite difference in space and backwards Euler in time
          ****************************************************************************/
-        void diffuse(ref double[] x)
+        void diffuse(ref double[, ,] x)
         {
-            double[] x_old = new double[x.Length];
+            double[, ,] x_old = new double[x.GetLength(0), x.GetLength(1), x.GetLength(2)];
             x.CopyTo(x_old, 0);
 
             gs_solve(1 + 6 * nu * dt / Math.Pow(h, 2), -dt * nu / Math.Pow(h, 2), x_old, ref x, 0);
@@ -96,81 +114,19 @@ namespace FastFluidSolver
          ****************************************************************************/
         void project()
         {
-            double[] div = new double[(int) Math.Pow(N,3)];
+            double[, ,] div = new double[Nx, Ny, Nz];
 
             // calculate div(w) using second order finite differences
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < Nx; i++)
             {
-                for (int j = 0; j < N; j++)
+                for (int j = 0; j < Ny; j++)
                 {
-                    for (int k = 0; k < N; k++)
+                    for (int k = 0; k < Nz; k++)
                     {
-                        if (omega.obstacle[cell_index(i, j, k, N)] == 0) //node not inside an obstacle
+                        if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //node not on boundary, use second order finite differnce
-                            {
-                                div[cell_index(i, j, k, N)] = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i - 1, j, k, N)] +
-                                    v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j - 1, k, N)] + w[cell_index(i, j, k + 1, N)] +
-                                    w[cell_index(i, j, k - 1, N)]) / (2 * h);
-                            }
-                            else //use first order finite difference
-                            {
-                                int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                int ny = omega.boundary_normal_y[cell_index(i, j, k, N)];
-                                int nz = omega.boundary_normal_z[cell_index(i, j, k, N)];
-
-                                //calculate each partial derivative individually
-                                double ux = 0;
-                                double vy = 0;
-                                double wz = 0;
-
-                                switch (nx)
-                                {
-                                    case 0:
-                                        ux = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i - 1, j, k, N)]) / (2 * h);
-                                        break;
-
-                                    case -1:
-                                        ux = (u[cell_index(i + 1, j, k, N)] - u[cell_index(i, j, k, N)]) /h;
-                                        break;
-
-                                    case 1:
-                                        ux = (u[cell_index(i, j, k, N)] - u[cell_index(i - 1, j, k, N)]) / h;
-                                        break;
-                                }
-
-                                switch (ny)
-                                {
-                                    case 0:
-                                        vy = (v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j - 1, k, N)]) / (2 * h);
-                                        break;
-
-                                    case -1:
-                                        vy = (v[cell_index(i, j + 1, k, N)] - v[cell_index(i, j, k, N)]) / h;
-                                        break;
-
-                                    case 1:
-                                        vy = (v[cell_index(i, j, k, N)] - v[cell_index(i, j - 1, k, N)]) / h;
-                                        break;
-                                }
-
-                                switch (nz)
-                                {
-                                    case 0:
-                                        wz = (w[cell_index(i, j + 1, k, N)] - w[cell_index(i, j - 1, k, N)]) / (2 * h);
-                                        break;
-
-                                    case -1:
-                                        wz = (w[cell_index(i, j, k + 1, N)] - w[cell_index(i, j, k, N)]) / h;
-                                        break;
-
-                                    case 1:
-                                        wz = (w[cell_index(i, j, k, N)] - w[cell_index(i, j, k - 1, N)]) / h;
-                                        break;
-                                }
-
-                                div[cell_index(i, j, k, N)] = ux + vy + wz;
-                            }
+                            div[i, j, k] = (u[i + 1, j, k] - u[i, j, k]) / hx +
+                                   (v[i, j + 1, k] - v[i, j, k]) / hy + (w[i, j, k + 1] - w[i, j, k]) / hz;                      
                         }
                     }
                 }
@@ -180,19 +136,19 @@ namespace FastFluidSolver
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
             //only need to add to interior points, as the velocity at boundary points has already been fixed
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < Nx; i++)
             {
-                for (int j = 0; j < N; j++)
+                for (int j = 0; j < Ny; j++)
                 {
-                    for (int k = 0; k < N; k++)
+                    for (int k = 0; k < Nz; k++)
                     {
-                        if (omega.obstacle[cell_index(i, j, k, N)] == 0) //node not inside an obstacle
+                        if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //node not on boundary, use second order finite differnce
+                            if (omega.boundary_cells[i, j ,k] == 0) //node not on boundary, use second order finite differnce
                             {
-                                u[cell_index(i, j, k, N)] -= (p[cell_index(i + 1, j, k, N)] - p[cell_index(i - 1, j, k, N)]) / (2 * h);
-                                v[cell_index(i, j, k, N)] -= (p[cell_index(i, j + 1, k, N)] - p[cell_index(i, j - 1, k, N)]) / (2 * h);
-                                w[cell_index(i, j, k, N)] -= (p[cell_index(i, j, k + 1, N)] - p[cell_index(i, j, k - 1, N)]) / (2 * h);
+                                u[i, j, k] -= (p[i + 1, j, k] - p[i, j, k]) / hx;
+                                v[i, j, k] -= (p[i, j + 1, k] - p[i, j, k]) / hy;
+                                w[i, j, k] -= (p[i, j, k + 1] - p[i, j, k]) / hz;
                             }
                         }
                     }
@@ -216,41 +172,6 @@ namespace FastFluidSolver
          **************************************************************************/
         void advect(ref double[] x, double[] x0, double[] velx, double[] vely,  double[] velz)
         {
-            double dispx, dispy, dispz;
-            int itmp, jtmp, ktmp;
-            double[] cube_values = new double[8];
-
-            for (int i = 0; i < N; i++)
-            {
-                for (int j = 0; j < N; j++)
-                {
-                    for (int k = 0; k < N; k++)
-                    {
-                        if ((omega.obstacle[cell_index(i, j, k, N)] == 0) &&
-                                (omega.boundary_nodes[cell_index(i, j, k, N)] == 0))
-                        {
-                            dispx = dt*velx[cell_index(i, j, k, N)] / h;
-                            dispy = dt*vely[cell_index(i, j, k, N)] / h;
-                            dispz = dt*velz[cell_index(i, j, k, N)] / h;
-
-                            itmp = (int)Math.Min(Math.Max(Math.Floor(i - dispx), 0), N - 2);
-                            jtmp = (int)Math.Min(Math.Max(Math.Floor(j - dispy), 0), N - 2);
-                            ktmp = (int)Math.Min(Math.Max(Math.Floor(k - dispz), 0), N - 2); 
-
-                            cube_values[0] = x0[cell_index(itmp + 1, jtmp + 1, ktmp + 1, N)];
-                            cube_values[1] = x0[cell_index(itmp + 1, jtmp + 1, ktmp + 1, N)];
-                            cube_values[2] = x0[cell_index(itmp + 1, jtmp, ktmp + 1, N)];
-                            cube_values[3] = x0[cell_index(itmp + 1, jtmp, ktmp, N)];
-                            cube_values[4] = x0[cell_index(itmp, jtmp + 1, ktmp + 1, N)];
-                            cube_values[5] = x0[cell_index(itmp, jtmp + 1, ktmp, N)];
-                            cube_values[6] = x0[cell_index(itmp, jtmp, ktmp + 1, N)];
-                            cube_values[7] = x0[cell_index(itmp, jtmp, ktmp, N)];
-
-                            x[cell_index(i, j, k, N)] = trilinear_interpolation(dispx % h, dispy % h, dispz % h, cube_values);
-                        }
-                    }
-                }
-            }
         }
 
         /*****************************************************************************
@@ -265,7 +186,7 @@ namespace FastFluidSolver
          * 
          * TO DO: add Jacobi solver, which can be run on multiple cores
          ****************************************************************************/
-        void gs_solve(double a, double c, double[] b, ref double[] x, int boundary_type)
+        void gs_solve(double a, double[] c, double[, ,] b, ref double[, ,] x, int boundary_type)
         {
             int iter = 0;
             double res = 2 * TOL;
@@ -273,23 +194,22 @@ namespace FastFluidSolver
             {
                 res = 0;
 
-                for (int i = 0; i < N; i++)
+                for (int i = 0; i < Nx + 1; i++)
                 {
-                    for (int j = 0; j < N; j++)
+                    for (int j = 0; j < Ny + 1; j++)
                     {
-                        for (int k = 0; k < N; k++)
+                        for (int k = 0; k < Nz + 1; k++)
                         {
-                            if (omega.obstacle[cell_index(i, j, k, N)] == 0) //if node not inside obstacle
+                            if (omega.obstacle_cells[i, j, k] == 0) //if node not inside obstacle
                             {
-                                double x_old = x[cell_index(i, j, k, N)];
+                                double x_old = x[i, j, k];
 
-                                if (omega.boundary_nodes[cell_index(i, j, k, N)] == 0) //if not on boundary, second order finite difference
+                                if (omega.boundary_cells[i, j, k] == 0) //if not on boundary, second order finite difference
                                 {
-                                    x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (x[cell_index(i - 1, j, k, N)] +
-                                            x[cell_index(i + 1, j, k, N)] + x[cell_index(i, j - 1, k, N)] + x[cell_index(i, j + 1, k, N)] +
-                                            x[cell_index(i, j, k - 1, N)] + x[cell_index(i, j, k + 1, N)])) / a;
+                                    x[i, j, k] = (b[i, j, k] - (c[0] * x[i, j, k - 1] + c[1] * x[i, j - 1, k] + c[2] * x[i - 1, j, k] +
+                                            c[3] * x[i + 1, j, k] + c[4] * x[i, j + 1, k] + c[5] * x[i, j, k + 1])) / a;
                                 }
-                                else if (boundary_type == 1)//if on boundary and homogeneous Neumann boundary conditions
+                                /*else if (boundary_type == 1)//if on boundary and homogeneous Neumann boundary conditions
                                 {
                                     int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
                                     int ny = omega.boundary_normal_y[cell_index(i, j, k, N)];
@@ -300,15 +220,15 @@ namespace FastFluidSolver
                                             Math.Abs(1 - ny) * x[cell_index(i, j + 1, k, N)] + Math.Abs(1 + nz) * x[cell_index(i, j, k - 1, N)] +
                                             Math.Abs(1 - nz) * x[cell_index(i, j, k + 1, N)])) / a;
 
-                                }
+                                }*/
 
-                                res += Math.Pow((x_old - x[cell_index(i, j, k, N)]), 2);
+                                res += Math.Pow((x_old - x[i, j, k]), 2);
                             }
                         }
                     }
                 }
 
-                res = Math.Sqrt(res) / Math.Pow(N, 3);
+                res = Math.Sqrt(res) / (Nx * Ny * Nz);
                 iter++;
             }
 
