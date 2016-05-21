@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FastFluidSolver
 {
-    class CavityDomain : Domain
+    public class CavityDomain : Domain
     {
         /***************************************************************************
          * Constructor
