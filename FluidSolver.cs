@@ -7,6 +7,12 @@ using System.Windows;
 
 namespace FastFluidSolver
 {
+    /************************************************************************
+     * Solves the Navier-Stokes equations using the Fast Fluid Dynamics method
+     * desribed by Stam in the paper "Stable Fluids". Uses a staggered grid 
+     * finite difference method to solve the spatial equations and backwards
+     * Euler in time.
+     ************************************************************************/
     public class FluidSolver
     {
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
@@ -17,9 +23,10 @@ namespace FastFluidSolver
         public double[, ,] w { get; private set; } // z component of velocity
         public double[, ,] p { get; private set; } // pressure
 
-        private double[, ,] u_scratch; //scratch arrays for velocities
-        private double[, ,] v_scratch;
-        private double[, ,] w_scratch;
+        private double[, ,] u_old; //scratch arrays for velocities
+        private double[, ,] v_old;
+        private double[, ,] w_old;
+        private double[, ,] p_old;
 
         private double dt;  //time step
         public int Nx { get; private set; } //number of points in each x coordinate direction
@@ -63,9 +70,14 @@ namespace FastFluidSolver
 
             p = new double[Nx, Ny, Nz];
 
-            u_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
-            v_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
-            w_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            u_old = new double[u.GetLength(0), u.GetLength(1), u.GetLength(2)];
+            v_old = new double[v.GetLength(0), v.GetLength(1), v.GetLength(2)];
+            w_old = new double[w.GetLength(0), w.GetLength(1), w.GetLength(2)];
+            p_old = new double[Nx, Ny, Nz];
+
+            u.CopyTo(u_old, 0);
+            v.CopyTo(v_old, 0);
+            w.CopyTo(w_old, 0);
         }
 
         /****************************************************************************
@@ -89,9 +101,10 @@ namespace FastFluidSolver
             w = old.w;
             p = old.p;
 
-            u_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
-            v_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
-            w_scratch = new double[Nx + 1, Ny + 1, Nz + 1];
+            u_old = old.u_old;
+            v_old = old.v_old;
+            w_old = old.w_old;
+            p_old = old.p_old;
 
             verbose = old.verbose;
         }
@@ -100,12 +113,19 @@ namespace FastFluidSolver
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
          * order finite difference in space and backwards Euler in time
          ****************************************************************************/
-        void diffuse(ref double[, ,] x)
+        void diffuse(double[, ,] x_old, out double[, ,] x_new)
         {
-            double[, ,] x_old = new double[x.GetLength(0), x.GetLength(1), x.GetLength(2)];
-            x.CopyTo(x_old, 0);
+            double a = 1 + 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
+            double[] c = new double[6];
 
-            gs_solve(1 + 6 * nu * dt / Math.Pow(h, 2), -dt * nu / Math.Pow(h, 2), x_old, ref x, 0);
+            c[0] = -dt * nu * Math.Pow(hz, -2);
+            c[1] = -dt * nu * Math.Pow(hy, -2);
+            c[2] = -dt * nu * Math.Pow(hx, -2);
+            c[3] = c[2];
+            c[4] = c[1];
+            c[5] = c[0];
+
+            gs_solve(a, c, x_old, x_old, out x_new);
         }
 
         /*****************************************************************************
@@ -132,7 +152,17 @@ namespace FastFluidSolver
                 }
             }
 
-            gs_solve(-6 / Math.Pow(h, 2), 1 / Math.Pow(h, 2), div, ref p, 1);
+            double a = 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
+            double[] c = new double[6];
+
+            c[0] = -nu * Math.Pow(hz, -2);
+            c[1] = -nu * Math.Pow(hy, -2);
+            c[2] = -nu * Math.Pow(hx, -2);
+            c[3] = c[2];
+            c[4] = c[1];
+            c[5] = c[0];
+
+            gs_solve(a, c, div, p_old, out p);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
             //only need to add to interior points, as the velocity at boundary points has already been fixed
@@ -180,14 +210,16 @@ namespace FastFluidSolver
          * @inputs
          * double a - coefficient along diagonal entry
          * double c - coefficient of all other nonzero entries
-         * double[] b - right hand side
-         * double[] x - reference to array in which to store solution
-         * int boundary type - 0 corresponds to Dirichlet, 1 to homogeneous Neumann 
+         * double[, ,] b - right hand side
+         * double[, ,] x0 - initial guess
+         * out double[, ,] x1 - solution
          * 
          * TO DO: add Jacobi solver, which can be run on multiple cores
          ****************************************************************************/
-        void gs_solve(double a, double[] c, double[, ,] b, ref double[, ,] x, int boundary_type)
+        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, out double[, ,] x1)
         {
+            x1 = new double[x0.GetLength(0), x0.GetLength(1), x0.GetLength(2)];
+
             int iter = 0;
             double res = 2 * TOL;
             while (iter < MAX_ITER && res > TOL)
@@ -202,34 +234,22 @@ namespace FastFluidSolver
                         {
                             if (omega.obstacle_cells[i, j, k] == 0) //if node not inside obstacle
                             {
-                                double x_old = x[i, j, k];
-
                                 if (omega.boundary_cells[i, j, k] == 0) //if not on boundary, second order finite difference
                                 {
-                                    x[i, j, k] = (b[i, j, k] - (c[0] * x[i, j, k - 1] + c[1] * x[i, j - 1, k] + c[2] * x[i - 1, j, k] +
-                                            c[3] * x[i + 1, j, k] + c[4] * x[i, j + 1, k] + c[5] * x[i, j, k + 1])) / a;
+                                    x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
+                                            c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] + c[5] * x0[i, j, k + 1])) / a;
                                 }
-                                /*else if (boundary_type == 1)//if on boundary and homogeneous Neumann boundary conditions
-                                {
-                                    int nx = omega.boundary_normal_x[cell_index(i, j, k, N)];
-                                    int ny = omega.boundary_normal_y[cell_index(i, j, k, N)];
-                                    int nz = omega.boundary_normal_z[cell_index(i, j, k, N)];
-
-                                    x[cell_index(i, j, k, N)] = (b[cell_index(i, j, k, N)] - c * (Math.Abs(1 + nx) * x[cell_index(i - 1, j, k, N)] +
-                                            Math.Abs(1 - nx) * x[cell_index(i + 1, j, k, N)] + Math.Abs(1 + ny) * x[cell_index(i, j - 1, k, N)] +
-                                            Math.Abs(1 - ny) * x[cell_index(i, j + 1, k, N)] + Math.Abs(1 + nz) * x[cell_index(i, j, k - 1, N)] +
-                                            Math.Abs(1 - nz) * x[cell_index(i, j, k + 1, N)])) / a;
-
-                                }*/
-
-                                res += Math.Pow((x_old - x[i, j, k]), 2);
                             }
                         }
                     }
                 }
 
-                res = Math.Sqrt(res) / (Nx * Ny * Nz);
+                apply_boundary_conditions();
+
+                res = compute_L2_difference(x0, x1);
                 iter++;
+
+                x1.CopyTo(x0, 0);
             }
 
             if (verbose)
@@ -243,17 +263,55 @@ namespace FastFluidSolver
          ********************************************************************************/
         void apply_boundary_conditions()
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < Nx; i++)
             {
-                for (int j = 0; j < N; j++)
+                for (int j = 0; j < Ny; j++)
                 {
-                    for (int k = 0; k < N; k++)
+                    for (int k = 0; k < Nz; k++)
                     {
-                        if (omega.boundary_nodes[cell_index(i, j, k, N)] == 1)
+                        if (omega.boundary_cells[i, j, k] == 1)
                         {
-                            u[cell_index(i, j, k, N)] = omega.boundary_u[cell_index(i, j, k, N)];
-                            v[cell_index(i, j, k, N)] = omega.boundary_v[cell_index(i, j, k, N)];
-                            w[cell_index(i, j, k, N)] = omega.boundary_w[cell_index(i, j, k, N)];
+                            if (omega.boundary_normal_x[i, j, k] == -1)//boundary is on the -x side of cell
+                            {
+                                u[i, j, k] = omega.boundary_u[i, j, k];
+                                v[i, j - 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
+                                w[i, j, k - 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                            }
+
+                            if (omega.boundary_normal_x[i, j, k] == 1) //boundary is to the +x side of cell
+                            {
+                                u[i, j, k] = omega.boundary_u[i, j, k];
+                                v[i, j + 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
+                                w[i, j, k + 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == -1)//boundary is on the -y side of cell
+                            {
+                                u[i - 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
+                                v[i, j, k] = omega.boundary_v[i, j, k];
+                                w[i, j, k - 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == 1)//boundary is on the +y side of cell
+                            {
+                                u[i + 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
+                                v[i, j, k] = omega.boundary_v[i, j, k];
+                                w[i, j, k + 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                            }
+
+                            if (omega.boundary_normal_z[i, j, k] == -1)//boundary is on the -z side of cell
+                            {
+                                u[i - 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
+                                v[i, j - 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
+                                w[i, j, k] = omega.boundary_w[i, j, k];
+                            }
+
+                            if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the z side of cell
+                            {
+                                u[i + 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
+                                v[i, j + 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
+                                w[i, j, k] = omega.boundary_w[i, j, k];
+                            }
                         }
                     }
                 }
@@ -276,7 +334,7 @@ namespace FastFluidSolver
          * 7. i, j, k+1
          * 8. i, j, k
          ****************************************************************************/
-        double trilinear_interpolation(double x, double y, double z, double[] values)
+        /*double trilinear_interpolation(double x, double y, double z, double[] values)
         {
             double f = (values[0] * (h - x) * (h - y) * (h - z) + values[1] * (h - x) * (h - y) * z +
                 values[2] * (h - x) * y * (h - z) + values[3] * (h - x) * y * z +
@@ -284,14 +342,33 @@ namespace FastFluidSolver
                 values[6] * x * y * (h - z) + values[7] * x * y * z) / Math.Pow(h, 3);
 
                 return f;
-        }
+        }*/
 
-        /***************************************************************************
-         * Takes the x, y, z indices of a cell and returns the global coordinate
+        /**************************************************************************
+         * Computes the normalized L2 difference between two 3 dimensional arrays
          **************************************************************************/
-        public static int cell_index(int x, int y, int z, int N)
+        private double compute_L2_difference(double[, ,] x1, double[, ,] x2)
         {
-            return (x >= 0 && y >= 0 && z >= 0 && x < N && y < N && z < N) ? x + y * N + z * (int)Math.Pow(N, 2) : 0;
+            double diff = 0;
+
+            int Sx = x1.GetLength(0);
+            int Sy = x1.GetLength(1);
+            int Sz = x1.GetLength(2);
+
+            for (int i = 0; i < Sx; i++)
+            {
+                for (int j = 0; j < Sy; j++)
+                {
+                    for (int k = 0; k < Sz; k++)
+                    {
+                        diff += Math.Pow(x1[i, j, k] - x2[i, j, k], 2);
+                    }
+                }
+            }
+
+            diff = Math.Sqrt(diff) / (Sx * Sy * Sz);
+
+            return diff;
         }
 
         /*****************************************************************************
@@ -301,21 +378,16 @@ namespace FastFluidSolver
         {
             apply_boundary_conditions();
 
-            diffuse(ref u);
-            diffuse(ref v);
-            diffuse(ref w);
+            diffuse(u_old, out u);
+            diffuse(v_old, out v);
+            diffuse(w_old, out w);
 
             project();
 
-            u.CopyTo(u_scratch, 0);
-            v.CopyTo(v_scratch, 0);
-            w.CopyTo(w_scratch, 0);
-
-            advect(ref u, u_scratch, u_scratch, v_scratch, w_scratch);
-            advect(ref v, v_scratch, u_scratch, v_scratch, w_scratch);
-            advect(ref w, w_scratch, u_scratch, v_scratch, w_scratch);
-
-            project();
+            u.CopyTo(u_old, 0);
+            v.CopyTo(v_old, 0);
+            w.CopyTo(w_old, 0);
+            p.CopyTo(p_old, 0);
         }
     }
 }
