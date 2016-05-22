@@ -9,7 +9,7 @@ namespace FastFluidSolver
     abstract class Domain
     {
         public int Nx, Ny, Nz;
-        public double hx, hy,hz;
+        public double hx, hy, hz, length_x, length_y, length_z;
 
         public int[, ,] boundary_cells { get; protected set; }   //flag to indicate if cell borders a boundary
         public int[, ,] obstacle_cells { get; protected set; }   //flag to indicate if cell is part of an obstacle

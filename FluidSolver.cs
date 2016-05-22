@@ -162,15 +162,15 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, div, p_old, out p);
+            gs_solve(a, c, div, p_old, p);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
             //only need to add to interior points, as the velocity at boundary points has already been fixed
-            for (int i = 0; i < Nx; i++)
+            for (int i = 1; i < Nx - 1; i++)
             {
-                for (int j = 0; j < Ny; j++)
+                for (int j = 1; j < Ny - 1; j++)
                 {
-                    for (int k = 0; k < Nz; k++)
+                    for (int k = 1; k < Nz - 1; k++)
                     {
                         if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
@@ -209,14 +209,15 @@ namespace FastFluidSolver
          * to the Poisson or diffusion equation using the iterative Gauss-Seidel method.
          * @inputs
          * double a - coefficient along diagonal entry
-         * double c - coefficient of all other nonzero entries
+         * double[] c[6] - coefficient of all other nonzero entries in order from left 
+         * to right (-k, -j, -i, +i, +j, +k)
          * double[, ,] b - right hand side
          * double[, ,] x0 - initial guess
          * out double[, ,] x1 - solution
          * 
          * TO DO: add Jacobi solver, which can be run on multiple cores
          ****************************************************************************/
-        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, out double[, ,] x1)
+        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1)
         {
             x1 = new double[x0.GetLength(0), x0.GetLength(1), x0.GetLength(2)];
 
@@ -224,21 +225,16 @@ namespace FastFluidSolver
             double res = 2 * TOL;
             while (iter < MAX_ITER && res > TOL)
             {
-                res = 0;
-
-                for (int i = 0; i < Nx + 1; i++)
+                for (int i = 0; i < Nx; i++)
                 {
-                    for (int j = 0; j < Ny + 1; j++)
+                    for (int j = 0; j < Ny; j++)
                     {
-                        for (int k = 0; k < Nz + 1; k++)
+                        for (int k = 0; k < Nz; k++)
                         {
-                            if (omega.obstacle_cells[i, j, k] == 0) //if node not inside obstacle
+                            if (omega.obstacle_cells[i, j, k] == 0) //if cell not an obstacle
                             {
-                                if (omega.boundary_cells[i, j, k] == 0) //if not on boundary, second order finite difference
-                                {
-                                    x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
+                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
                                             c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] + c[5] * x0[i, j, k + 1])) / a;
-                                }
                             }
                         }
                     }
@@ -259,7 +255,8 @@ namespace FastFluidSolver
         }
 
         /*********************************************************************************
-         * Applies the boundary conditions from the domain omega to the velocities
+         * Applies the Dirichlet boundary conditions from the domain omega to the velocities
+         * and homogeneuous Neumann boundary conditions to the pressure
          ********************************************************************************/
         void apply_boundary_conditions()
         {
@@ -273,44 +270,50 @@ namespace FastFluidSolver
                         {
                             if (omega.boundary_normal_x[i, j, k] == -1)//boundary is on the -x side of cell
                             {
-                                u[i, j, k] = omega.boundary_u[i, j, k];
-                                v[i, j - 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
-                                w[i, j, k - 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                                u[i - 1, j, k] = omega.boundary_u[i - 1, j, k];
+                                v[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j, k];
+                                w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
+                                p[i - 1, j, k] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == 1) //boundary is to the +x side of cell
                             {
-                                u[i, j, k] = omega.boundary_u[i, j, k];
-                                v[i, j + 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
-                                w[i, j, k + 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                                u[i + 1, j, k] = omega.boundary_u[i + 1, j, k];
+                                v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j, k];
+                                w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
+                                p[i + 1, j, k] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_y[i, j, k] == -1)//boundary is on the -y side of cell
                             {
-                                u[i - 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
-                                v[i, j, k] = omega.boundary_v[i, j, k];
-                                w[i, j, k - 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                                u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - u[i, j, k];
+                                v[i, j - 1, k] = omega.boundary_v[i, j - 1, k];
+                                w[i, j - 1, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
+                                p[i, j - 1, k] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_y[i, j, k] == 1)//boundary is on the +y side of cell
                             {
-                                u[i + 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
-                                v[i, j, k] = omega.boundary_v[i, j, k];
-                                w[i, j, k + 1] = 2 * omega.boundary_w[i, j, k] + w[i, j, k];
+                                u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i, j, k];
+                                v[i, j + 1, k] = omega.boundary_v[i, j + 1, k];
+                                w[i, j + 1, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
+                                p[i, j + 1, k] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_z[i, j, k] == -1)//boundary is on the -z side of cell
                             {
-                                u[i - 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
-                                v[i, j - 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
-                                w[i, j, k] = omega.boundary_w[i, j, k];
+                                u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i, j, k];
+                                v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j, k];
+                                w[i, j, k - 1] = omega.boundary_w[i, j, k];
+                                p[i, j, k - 1] = p[i, j, k];
                             }
 
-                            if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the z side of cell
+                            if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the +z side of cell
                             {
-                                u[i + 1, j, k] = 2 * omega.boundary_u[i, j, k] + u[i, j, k];
-                                v[i, j + 1, k] = 2 * omega.boundary_v[i, j, k] + v[i, j, k];
-                                w[i, j, k] = omega.boundary_w[i, j, k];
+                                u[i, j, k -+ 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
+                                v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j, k];
+                                w[i, j, k + 1] = omega.boundary_w[i, j, k];
+                                p[i, j, k + 1] = p[i, j, k];
                             }
                         }
                     }
@@ -367,7 +370,6 @@ namespace FastFluidSolver
             }
 
             diff = Math.Sqrt(diff) / (Sx * Sy * Sz);
-
             return diff;
         }
 
