@@ -12,6 +12,25 @@ namespace FastFluidSolver
      * desribed by Stam in the paper "Stable Fluids". Uses a staggered grid 
      * finite difference method to solve the spatial equations and backwards
      * Euler in time.
+     * 
+     * u[i, j, k] located at (i*hx, (j-0.5)*hy, (k-0.5)*hz)
+     * i = 0, ..., Nx - 1, j = 0, ... Ny + 1, k = 0, ..., Nz + 1
+     * u[0, j, k] and u[Nx-1, j, k] on boundary
+     * u[i, 0, k], u[i, j, 0], u[i, Ny+1, k], u[i, j, Nz+1] inside obstacle cell
+     * 
+     * v[i, j, k] located at ((i-0.5*hx), j*hy, (k-0.5)*hz)
+     * i = 0, ..., Nx + 1, j = 0, ... Ny - 1, k = 0, ..., Nz + 1
+     * v[i, 0, k] and v[i, Ny-1, k] on boundary
+     * v[0, j, k], v[i, j, 0], v[Nx+1, j, k], v[i, j, Nz+1] inside obstacle cell
+     * 
+     * w[i, j, k] located at((i-0.5)*hx, (j-0.5)*hy, k*hz)
+     * i = 0, ..., Nx + 1, j = 0, ... Ny + 1, k = 0, ..., Nz - 1 
+     * w[i, j, 0] and w[i, j, Nz-1] on boundary
+     * w[0, j, k], w[i, 0, k], w[Nx+1, j, k], w[i, Ny+1, k] inside obstacle cell
+     *  
+     * p[i,j,k] located at (i*hx, j*hy, k*hz)
+     * i = 0, ... Nx + 1, j = 0, ... Ny + 1, k = 0, ... Nz + 1
+     * p at i,j,k = 0, Nx+1 are inside obstacle cells
      ************************************************************************/
     public class FluidSolver
     {
@@ -113,7 +132,7 @@ namespace FastFluidSolver
          * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
          * order finite difference in space and backwards Euler in time
          ****************************************************************************/
-        void diffuse(double[, ,] x_old, out double[, ,] x_new)
+        void diffuse(double[, ,] x_old, ref double[, ,] x_new)
         {
             double a = 1 + 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
             double[] c = new double[6];
@@ -125,7 +144,7 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, x_old, x_old, out x_new);
+            gs_solve(a, c, x_old, x_old, ref x_new);
         }
 
         /*****************************************************************************
@@ -162,7 +181,7 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, div, p_old, p);
+            gs_solve(a, c, div, p_old, ref p);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
             //only need to add to interior points, as the velocity at boundary points has already been fixed
@@ -202,56 +221,6 @@ namespace FastFluidSolver
          **************************************************************************/
         void advect(ref double[] x, double[] x0, double[] velx, double[] vely,  double[] velz)
         {
-        }
-
-        /*****************************************************************************
-         * Solves the banded system given by the finite difference method applied
-         * to the Poisson or diffusion equation using the iterative Gauss-Seidel method.
-         * @inputs
-         * double a - coefficient along diagonal entry
-         * double[] c[6] - coefficient of all other nonzero entries in order from left 
-         * to right (-k, -j, -i, +i, +j, +k)
-         * double[, ,] b - right hand side
-         * double[, ,] x0 - initial guess
-         * out double[, ,] x1 - solution
-         * 
-         * TO DO: add Jacobi solver, which can be run on multiple cores
-         ****************************************************************************/
-        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1)
-        {
-            x1 = new double[x0.GetLength(0), x0.GetLength(1), x0.GetLength(2)];
-
-            int iter = 0;
-            double res = 2 * TOL;
-            while (iter < MAX_ITER && res > TOL)
-            {
-                for (int i = 0; i < Nx; i++)
-                {
-                    for (int j = 0; j < Ny; j++)
-                    {
-                        for (int k = 0; k < Nz; k++)
-                        {
-                            if (omega.obstacle_cells[i, j, k] == 0) //if cell not an obstacle
-                            {
-                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
-                                            c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] + c[5] * x0[i, j, k + 1])) / a;
-                            }
-                        }
-                    }
-                }
-
-                apply_boundary_conditions();
-
-                res = compute_L2_difference(x0, x1);
-                iter++;
-
-                x1.CopyTo(x0, 0);
-            }
-
-            if (verbose)
-            {
-                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", res, iter);
-            }
         }
 
         /*********************************************************************************
@@ -310,7 +279,7 @@ namespace FastFluidSolver
 
                             if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the +z side of cell
                             {
-                                u[i, j, k -+ 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
+                                u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
                                 v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j, k];
                                 w[i, j, k + 1] = omega.boundary_w[i, j, k];
                                 p[i, j, k + 1] = p[i, j, k];
@@ -321,68 +290,15 @@ namespace FastFluidSolver
             }
         }
 
-        /*****************************************************************************
-         * Performs a trilinear interpolation inside a cube with sides of length h
-         * @inputs:
-         * double x,y,z - the x,y and z coordinates of a point inside the box, with the 
-         * origin at one of the corners. All these coordinates must be between 0 and h
-         * double[] values - the values at the 8 corners of the cube. These must be 
-         * specified in the order:
-         * 1. i+1, j+1, k+1
-         * 2. i+1, j+1, k
-         * 3. i+1, j, k+1
-         * 4. i+1, j, k
-         * 5. i, j+1, k+1
-         * 6. i, j+1, k
-         * 7. i, j, k+1
-         * 8. i, j, k
-         ****************************************************************************/
-        /*double trilinear_interpolation(double x, double y, double z, double[] values)
-        {
-            double f = (values[0] * (h - x) * (h - y) * (h - z) + values[1] * (h - x) * (h - y) * z +
-                values[2] * (h - x) * y * (h - z) + values[3] * (h - x) * y * z +
-                values[4] * x * (h - y) * (h - z) + values[5] * x * (h - y) * z +
-                values[6] * x * y * (h - z) + values[7] * x * y * z) / Math.Pow(h, 3);
-
-                return f;
-        }*/
-
-        /**************************************************************************
-         * Computes the normalized L2 difference between two 3 dimensional arrays
-         **************************************************************************/
-        private double compute_L2_difference(double[, ,] x1, double[, ,] x2)
-        {
-            double diff = 0;
-
-            int Sx = x1.GetLength(0);
-            int Sy = x1.GetLength(1);
-            int Sz = x1.GetLength(2);
-
-            for (int i = 0; i < Sx; i++)
-            {
-                for (int j = 0; j < Sy; j++)
-                {
-                    for (int k = 0; k < Sz; k++)
-                    {
-                        diff += Math.Pow(x1[i, j, k] - x2[i, j, k], 2);
-                    }
-                }
-            }
-
-            diff = Math.Sqrt(diff) / (Sx * Sy * Sz);
-            return diff;
-        }
 
         /*****************************************************************************
          * Perform a single time step
          *****************************************************************************/
         public void time_step()
         {
-            apply_boundary_conditions();
-
-            diffuse(u_old, out u);
-            diffuse(v_old, out v);
-            diffuse(w_old, out w);
+            diffuse(u_old, ref u);
+            diffuse(v_old, ref v);
+            diffuse(w_old, ref w);
 
             project();
 
@@ -390,6 +306,60 @@ namespace FastFluidSolver
             v.CopyTo(v_old, 0);
             w.CopyTo(w_old, 0);
             p.CopyTo(p_old, 0);
+        }
+
+        /*****************************************************************************
+         * Solves the banded system given by the finite difference method applied
+         * to the Poisson or diffusion equation using the iterative Gauss-Seidel method.
+         * @inputs
+         * double a - coefficient along diagonal entry
+         * double[] c[6] - coefficient of all other nonzero entries in order from left 
+         * to right (-k, -j, -i, +i, +j, +k)
+         * double[, ,] b - right hand side
+         * double[, ,] x0 - initial guess
+         * out double[, ,] x1 - solution
+         * 
+         * TO DO: add Jacobi solver, which can be run on multiple cores
+         ****************************************************************************/
+        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1)
+        {
+            int Sx = x0.GetLength(0);
+            int Sy = x0.GetLength(1);
+            int Sz = x0.GetLength(2);
+
+            x1 = new double[Sx, Sy, Sz];
+
+            int iter = 0;
+            double res = 2 * TOL;
+            while (iter < MAX_ITER && res > TOL)
+            {
+                for (int i = 1; i < Sx - 1; i++)
+                {
+                    for (int j = 1; j < Sy - 1; j++)
+                    {
+                        for (int k = 1; k < Sz - 1; k++)
+                        {
+                            if (omega.obstacle_cells[i, j, k] == 0) //if cell not an obstacle
+                            {
+                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
+                                            c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] + c[5] * x0[i, j, k + 1])) / a;
+                            }
+                        }
+                    }
+                }
+
+                apply_boundary_conditions();
+
+                res = Utilities.compute_L2_difference(x0, x1);
+                iter++;
+
+                x1.CopyTo(x0, 0);
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", res, iter);
+            }
         }
     }
 }
