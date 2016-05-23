@@ -28,6 +28,15 @@ namespace FastFluidSolver
         public void export_vtk(String fname, int Nx, int Ny, int Nz)
         {
 
+            double hx = omega.length_x / Nx;
+            double hy = omega.length_y / Nx;
+            double hz = omega.length_z / Nx;
+
+            double[, ,] p;
+            double[, ,] u;
+            double[, ,] v;
+            double[, ,] w;
+
             interpolate_to_grid(Nx, Ny, Nz, out p, out u, out v, out w);
 
             using (StreamWriter sw = new StreamWriter(fname))
@@ -36,81 +45,41 @@ namespace FastFluidSolver
                 sw.WriteLine("Fast Fluid Dynamics data\n");
                 sw.WriteLine("ASCII");
                 sw.WriteLine("DATASET STRUCTURED_GRID");
-                sw.WriteLine("DIMENSIONS {0} {1} {2}", N, N, N);
-                sw.WriteLine("POINTS {0} double", Math.Pow(N, 3));
-                for (int i = 0; i < N; i++)
+                sw.WriteLine("DIMENSIONS {0} {1} {2}", Nx, Ny, Nz);
+                sw.WriteLine("POINTS {0} double", Nx * Ny * Nz);
+                for (int i = 0; i < Nx; i++)
                 {
-                    for (int j = 0; j < N; j++)
+                    for (int j = 0; j < Ny; j++)
                     {
-                        for (int k = 0; k < N; k++)
+                        for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", h * i, h * j, h * k);
+                            sw.WriteLine("{0} {1} {2}", hx * i, hy * j, hz * k);
                         }
                     }
                 }
 
-                sw.WriteLine("POINT_DATA {0}", Math.Pow(N, 3));
+                sw.WriteLine("POINT_DATA {0}", Nx * Ny * Nz);
                 sw.WriteLine("VECTORS velocity double");
-                for (int i = 0; i < N; i++)
+                for (int i = 0; i < Nx; i++)
                 {
-                    for (int j = 0; j < N; j++)
+                    for (int j = 0; j < Ny; j++)
                     {
-                        for (int k = 0; k < N; k++)
+                        for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", fs.u[FluidSolver.cell_index(i, j, k, N)], 
-                                    fs.v[FluidSolver.cell_index(i, j, k, N)], fs.w[FluidSolver.cell_index(i, j, k, N)]);
+                            sw.WriteLine("{0} {1} {2}", fs.u[i, j, k], fs.v[i, j, k], fs.w[i, j, k]);
                         }
                     }
                 }
 
                 sw.WriteLine("SCALARS pressure double {0}", 1);
                 sw.WriteLine("LOOKUP_TABLE default");
-                for (int i = 0; i < N; i++)
+                for (int i = 0; i < Nz; i++)
                 {
-                    for (int j = 0; j < N; j++)
+                    for (int j = 0; j < Ny; j++)
                     {
-                        for (int k = 0; k < N; k++)
+                        for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0}", fs.p[cell_index(i, j, k, N)]);
-                        }
-                    }
-                }
-
-                sw.WriteLine("SCALARS nx int {0}", 1);
-                sw.WriteLine("LOOKUP_TABLE default");
-                for (int i = 0; i < N; i++)
-                {
-                    for (int j = 0; j < N; j++)
-                    {
-                        for (int k = 0; k < N; k++)
-                        {
-                            sw.WriteLine("{0}", omega.boundary_normal_x[cell_index(i, j, k, N)]);
-                        }
-                    }
-                }
-
-                sw.WriteLine("SCALARS ny int {0}", 1);
-                sw.WriteLine("LOOKUP_TABLE default");
-                for (int i = 0; i < N; i++)
-                {
-                    for (int j = 0; j < N; j++)
-                    {
-                        for (int k = 0; k < N; k++)
-                        {
-                            sw.WriteLine("{0}", omega.boundary_normal_y[cell_index(i, j, k, N)]);
-                        }
-                    }
-                }
-
-                sw.WriteLine("SCALARS nz int {0}", 1);
-                sw.WriteLine("LOOKUP_TABLE default");
-                for (int i = 0; i < N; i++)
-                {
-                    for (int j = 0; j < N; j++)
-                    {
-                        for (int k = 0; k < N; k++)
-                        {
-                            sw.WriteLine("{0}", omega.boundary_normal_z[cell_index(i, j, k, N)]);
+                            sw.WriteLine("{0}", fs.p[i, j, k]);
                         }
                     }
                 }
@@ -124,17 +93,17 @@ namespace FastFluidSolver
         private void interpolate_to_grid(int Nx, int Ny, int Nz, out double[, ,] p_interp,
                         out double[, ,] u_interp, out double[, ,] v_interp, out double[, ,] w_interp)
         {
+            p_interp = new double[Nx, Ny, Nz];
+            u_interp = new double[Nx, Ny, Nz];
+            v_interp = new double[Nx, Ny, Nz];
+            w_interp = new double[Nx, Ny, Nz];
+
             double hx_interp = omega.length_x / Nx;
             double hy_interp = omega.length_y / Ny;
             double hz_interp = omega.length_z / Nz;
 
-            double[] spacing_fs = new double {omega.hx, omega.hy, omega.hz};
+            double[] spacing_fs = new double[] { omega.hx, omega.hy, omega.hz };
             double[] coordinate = new double[3];
-
-            double[, ,] p_interp = new double[Nx, Ny, Nz];
-            double[, ,] u_interp = new double[Nx, Ny, Nz];
-            double[, ,] v_interp = new double[Nx, Ny, Nz];
-            double[, ,] w_interp = new double[Nx, Ny, Nz];
 
             for (int i = 0; i < Nx + 1; i++)
             {
@@ -146,13 +115,14 @@ namespace FastFluidSolver
                         coordinate[1] = j * hy_interp;
                         coordinate[2] = k * hz_interp;
 
-                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing);
-                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing);
-                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing);
-                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing);
+                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs);
+                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs);
+                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing_fs);
+                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing_fs);
                     }
                 }
             }
         }
     }
 }
+

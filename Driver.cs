@@ -10,23 +10,26 @@ namespace FastFluidSolver
     {
         static void Main()
         {
-            int N = 16;
+            int Nx = 16;
+            int Ny = 16;
+            int Nz = 16;
+
             double dt = 0.05;
-            double nu = 0.01;
+            double nu = 1;
 
             double tf = 1;
             double t = 0;
         
-            double[] u0 = new double[(int)Math.Pow(N, 3)];
-            double[] v0 = new double[(int)Math.Pow(N, 3)];
-            double[] w0 = new double[(int)Math.Pow(N, 3)];
+            double[, ,] u0 = new double[Nx + 2, Ny + 2, Nz + 2];
+            double[, ,] v0 = new double[Nx + 2, Ny + 2, Nz + 2];
+            double[, ,] w0 = new double[Nx + 2, Ny + 2, Nz + 2];
 
-            CavityDomain omega = new CavityDomain(N);
+            CavityDomain omega = new CavityDomain(Nx + 2, Ny + 2, Nz + 2);
             FluidSolver ffd = new FluidSolver(omega, dt, nu, u0, v0, w0, true);
             PostProcessor pp = new PostProcessor(ffd, omega);
 
             int tstep = 0;
-            pp.export_vtk(String.Concat("lid_driven_cavity_", tstep, ".vtk"));
+            pp.export_vtk(String.Concat("lid_driven_cavity_", tstep, ".vtk"), Nx, Ny, Nz);
             while (t < tf)
             {
                 t += dt;
@@ -35,7 +38,7 @@ namespace FastFluidSolver
                 Console.WriteLine("Time t = {0}", t);               
                 
                 ffd.time_step();
-                pp.export_vtk(String.Concat("lid_driven_cavity_w_advection_", tstep, ".vtk"));                
+                pp.export_vtk(String.Concat("lid_driven_cavity_", tstep, ".vtk"), Nx, Ny, Nz);           
             }
         }
     }

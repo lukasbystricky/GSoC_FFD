@@ -37,10 +37,10 @@ namespace FastFluidSolver
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
         const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
 
-        public double[, ,] u { get; private set; } // x component of velocity
-        public double[, ,] v { get; private set; }// y component of velocity
-        public double[, ,] w { get; private set; } // z component of velocity
-        public double[, ,] p { get; private set; } // pressure
+        public double[, ,] u; // x component of velocity
+        public double[, ,] v;// y component of velocity
+        public double[, ,] w; // z component of velocity
+        public double[, ,] p; // pressure
 
         private double[, ,] u_old; //scratch arrays for velocities
         private double[, ,] v_old;
@@ -94,9 +94,9 @@ namespace FastFluidSolver
             w_old = new double[w.GetLength(0), w.GetLength(1), w.GetLength(2)];
             p_old = new double[Nx, Ny, Nz];
 
-            u.CopyTo(u_old, 0);
-            v.CopyTo(v_old, 0);
-            w.CopyTo(w_old, 0);
+            Array.Copy(u, 0, u_old, 0, u.Length);
+            Array.Copy(v, 0, v_old, 0, v.Length);
+            Array.Copy(w, 0, u_old, 0, w.Length);
         }
 
         /****************************************************************************

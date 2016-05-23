@@ -11,11 +11,11 @@ namespace FastFluidSolver
         /*****************************************************************************
          * Performs a trilinear interpolation 
         ****************************************************************************/
-        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, double[] spacing)
+        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, double[] spacings)
         {
-            double hx = spacing[0];
-            double hy = spacing[1];
-            double hz = spacing[2];
+            double hx = spacings[0];
+            double hy = spacings[1];
+            double hz = spacings[2];
 
             int i = (int)Math.Floor(coordinate[0] / hx);
             int j = (int)Math.Floor(coordinate[1] / hy);
@@ -26,7 +26,7 @@ namespace FastFluidSolver
 
             // interpolate pressure values
             // pressure values are given at centre of cell
-            double[] centre = find_centre(i, j, k, grid_type);
+            double[] centre = find_centre(i, j, k, spacings, grid_type);
             find_bounding_indices(centre[0], coordinate[0], i, out imin, out imax);
             find_bounding_indices(centre[1], coordinate[1], j, out jmin, out jmax);
             find_bounding_indices(centre[k], coordinate[k], k, out kmin, out kmax);
@@ -84,9 +84,13 @@ namespace FastFluidSolver
         /***************************************************************************
          * Find cartestian coordinates of centre of cell i, j, k
          **************************************************************************/
-        public static double[] find_centre(int i, int j, int k, int grid_type)
+        public static double[] find_centre(int i, int j, int k, double[] spacings, int grid_type)
         {
             double[] centre = new double[3];
+
+            double hx = spacings[0];
+            double hy = spacings[0];
+            double hz = spacings[0];
 
             switch (grid_type)
             {

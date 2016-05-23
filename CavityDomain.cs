@@ -17,13 +17,13 @@ namespace FastFluidSolver
             this.Ny = Ny;
             this.Nz = Nz;
 
-            hx = 1.0 / Nz;
-            hy = 1.0 / Nz;
-            hz = 1.0 / Nz;
-
             length_x = 1;
             length_y = 1;
             length_z = 1;
+
+            hx = length_x / Nz;
+            hy = length_y / Nz;
+            hz = length_z / Nz;            
 
             boundary_cells = new int[Nx, Ny, Nz];
             obstacle_cells = new int[Nx, Ny, Nz];

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FastFluidSolver
 {
-    abstract class Domain
+    public abstract class Domain
     {
         public int Nx, Ny, Nz;
         public double hx, hy, hz, length_x, length_y, length_z;
