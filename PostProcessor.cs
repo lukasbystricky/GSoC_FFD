@@ -102,23 +102,24 @@ namespace FastFluidSolver
             double hy_interp = omega.length_y / Ny;
             double hz_interp = omega.length_z / Nz;
 
+            int[] ncells_fs = new int[] { omega.Nx, omega.Ny, omega.Nz };
             double[] spacing_fs = new double[] { omega.hx, omega.hy, omega.hz };
             double[] coordinate = new double[3];
 
-            for (int i = 0; i < Nx + 1; i++)
+            for (int i = 0; i < Nx; i++)
             {
-                for (int j = 0; j < Ny + 1; j++)
+                for (int j = 0; j < Ny; j++)
                 {
-                    for (int k = 0; k < Nz + 1; k++)
+                    for (int k = 0; k < Nz; k++)
                     {
                         coordinate[0] = i * hx_interp;
                         coordinate[1] = j * hy_interp;
                         coordinate[2] = k * hz_interp;
 
-                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs);
-                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs);
-                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing_fs);
-                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing_fs);
+                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs, ncells_fs);
+                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs, ncells_fs);
+                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing_fs, ncells_fs);
+                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing_fs, ncells_fs);
                     }
                 }
             }

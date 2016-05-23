@@ -41,16 +41,18 @@ namespace FastFluidSolver
             {
                 for (int j = 0; j < Ny; j++)
                 {
-                    boundary_cells[i, j, 1] = 1;
-                    boundary_cells[i, j, Nz - 2] = 1;
+                    if (i > 0 && i < Nx - 1 && j > 0 && j < Ny - 1)
+                    {
+                        boundary_cells[i, j, 1] = 1;
+                        boundary_cells[i, j, Nz - 2] = 1;
+                        boundary_normal_z[i, j, 1] = -1;
+                        boundary_normal_z[i, j, Nz - 2] = 1;
+                    }
 
                     obstacle_cells[i, j, 0] = 1;
                     obstacle_cells[i, j, Nz - 1] = 1;
 
-                    boundary_normal_z[i, j, 1] = -1;
-                    boundary_normal_z[i, j, Nz - 2] = 1;
-
-                    boundary_u[i, j, Nz - 1] = 1;
+                    boundary_u[i, j, Nz - 1] = 1;                    
                 }
             }
 
@@ -59,14 +61,17 @@ namespace FastFluidSolver
             {
                 for (int k = 0; k < Nz; k++)
                 {
-                    boundary_cells[i, 1, k] = 1;
-                    boundary_cells[i, Ny - 2, k] = 1;
+                    if (i > 0 && i < Nx - 1 && k > 0 && k < Nz - 1)
+                    {
+                        boundary_cells[i, 1, k] = 1;
+                        boundary_cells[i, Ny - 2, k] = 1;
+                        
+                        boundary_normal_z[i, 1, k] = -1;
+                        boundary_normal_z[i, Ny - 2, k] = 1;
+                    }
 
                     obstacle_cells[i, 0, k] = 1;
-                    obstacle_cells[i, Ny - 1, k] = 1;
-
-                    boundary_normal_z[i, 1, k] = -1;
-                    boundary_normal_z[i, Ny - 2, k] = 1;
+                    obstacle_cells[i, Ny - 1, k] = 1;                    
                 }
             }
 
@@ -75,14 +80,16 @@ namespace FastFluidSolver
             {
                 for (int k = 0; k < Nz; k++)
                 {
-                    boundary_cells[1, j, k] = 1;
-                    boundary_cells[Nx - 2, j, k] = 1;
+                    if (j > 0 && j < Ny - 1 && k > 0 && k < Nz - 1)
+                    {
+                        boundary_cells[1, j, k] = 1;
+                        boundary_cells[Nx - 2, j, k] = 1;
+                        boundary_normal_z[1, j, k] = -1;
+                        boundary_normal_z[Nx - 2, j, k] = 1;
+                    }
 
                     obstacle_cells[0, j, k] = 1;
-                    obstacle_cells[Nx - 1, j, k] = 1;
-
-                    boundary_normal_z[1, j, k] = -1;
-                    boundary_normal_z[Nx - 2, j, k] = 1;
+                    obstacle_cells[Nx - 1, j, k] = 1;                  
                 }
             }
         }

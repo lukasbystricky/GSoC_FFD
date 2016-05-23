@@ -302,10 +302,9 @@ namespace FastFluidSolver
 
             project();
 
-            u.CopyTo(u_old, 0);
-            v.CopyTo(v_old, 0);
-            w.CopyTo(w_old, 0);
-            p.CopyTo(p_old, 0);
+            Array.Copy(u, 0, u_old, 0, u.Length);
+            Array.Copy(v, 0, v_old, 0, v.Length);
+            Array.Copy(w, 0, u_old, 0, w.Length);
         }
 
         /*****************************************************************************
@@ -353,7 +352,7 @@ namespace FastFluidSolver
                 res = Utilities.compute_L2_difference(x0, x1);
                 iter++;
 
-                x1.CopyTo(x0, 0);
+                Array.Copy(x1, 0, x0, 0, x1.Length);
             }
 
             if (verbose)

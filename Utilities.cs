@@ -11,15 +11,20 @@ namespace FastFluidSolver
         /*****************************************************************************
          * Performs a trilinear interpolation 
         ****************************************************************************/
-        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, double[] spacings)
+        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, 
+            double[] spacings, int[] ncells)
         {
             double hx = spacings[0];
             double hy = spacings[1];
             double hz = spacings[2];
 
-            int i = (int)Math.Floor(coordinate[0] / hx);
-            int j = (int)Math.Floor(coordinate[1] / hy);
-            int k = (int)Math.Floor(coordinate[2] / hz);
+            int Nx = ncells[0];
+            int Ny = ncells[1];
+            int Nz = ncells[2];
+
+            int i = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
+            int j = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
+            int k = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
 
             int imin, imax, jmin, jmax, kmin, kmax;
             double[] corner_values = new double[8];
@@ -27,9 +32,9 @@ namespace FastFluidSolver
             // interpolate pressure values
             // pressure values are given at centre of cell
             double[] centre = find_centre(i, j, k, spacings, grid_type);
-            find_bounding_indices(centre[0], coordinate[0], i, out imin, out imax);
-            find_bounding_indices(centre[1], coordinate[1], j, out jmin, out jmax);
-            find_bounding_indices(centre[k], coordinate[k], k, out kmin, out kmax);
+            find_bounding_indices(centre[0], coordinate[0], i, out imin, out imax, Nx);
+            find_bounding_indices(centre[1], coordinate[1], j, out jmin, out jmax, Ny);
+            find_bounding_indices(centre[2], coordinate[2], k, out kmin, out kmax, Nz);
 
             corner_values[0] = array[imin, jmin, kmin];
             corner_values[1] = array[imax, jmin, kmin];
@@ -126,7 +131,7 @@ namespace FastFluidSolver
         /***********************************************************************
          * Find the bounding indices for a linear interpolation
          **********************************************************************/
-        public static void find_bounding_indices(double centre, double coordinate, int i, out int imin, out int imax)
+        public static void find_bounding_indices(double centre, double coordinate, int i, out int imin, out int imax, int N)
         {
             if (centre > coordinate)
             {
@@ -138,6 +143,9 @@ namespace FastFluidSolver
                 imin = i;
                 imax = i + 1;
             }
+
+            imin = Math.Max(imin, 0);
+            imax = Math.Min(imax, N);
         }
     }
 }
