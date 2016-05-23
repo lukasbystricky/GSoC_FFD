@@ -27,7 +27,6 @@ namespace FastFluidSolver
         ****************************************************************************/
         public void export_vtk(String fname, int Nx, int Ny, int Nz)
         {
-
             double hx = omega.length_x / Nx;
             double hy = omega.length_y / Nx;
             double hz = omega.length_z / Nx;
@@ -53,7 +52,7 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", hx * i, hy * j, hz * k);
+                            sw.WriteLine("{0} {1} {2}", hx * (i + 1), hy * (j + 1), hz * (k + 1));
                         }
                     }
                 }
@@ -112,9 +111,9 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < Nz; k++)
                     {
-                        coordinate[0] = i * hx_interp;
-                        coordinate[1] = j * hy_interp;
-                        coordinate[2] = k * hz_interp;
+                        coordinate[0] = (i + 1) * hx_interp;
+                        coordinate[1] = (j + 1) * hy_interp;
+                        coordinate[2] = (k + 1) * hz_interp;
 
                         p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs, ncells_fs);
                         u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs, ncells_fs);

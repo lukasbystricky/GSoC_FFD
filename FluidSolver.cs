@@ -171,7 +171,7 @@ namespace FastFluidSolver
                 }
             }
 
-            double a = 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
+            double a = 2 * nu * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
             double[] c = new double[6];
 
             c[0] = -nu * Math.Pow(hz, -2);

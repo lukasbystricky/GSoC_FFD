@@ -45,9 +45,9 @@ namespace FastFluidSolver
             corner_values[6] = array[imin, jmax, kmax];
             corner_values[7] = array[imax, jmax, kmax];
 
-            double x = coordinate[0] - centre[0];
-            double y = coordinate[1] - centre[1];
-            double z = coordinate[2] - centre[2];
+            double x = coordinate[0] - hx * imin;
+            double y = coordinate[1] - hy * jmin;
+            double z = coordinate[2] - hz * kmin;
 
             double c00 = corner_values[0] * (hx - x) + corner_values[1] * x;
             double c01 = corner_values[2] * (hx - x) + corner_values[3] * x;
