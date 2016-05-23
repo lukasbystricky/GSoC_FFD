@@ -11,7 +11,7 @@ namespace FastFluidSolver
         /*****************************************************************************
          * Performs a trilinear interpolation 
         ****************************************************************************/
-        public double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, double[] spacing)
+        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, double[] spacing)
         {
             double hx = spacing[0];
             double hy = spacing[1];
@@ -84,7 +84,7 @@ namespace FastFluidSolver
         /***************************************************************************
          * Find cartestian coordinates of centre of cell i, j, k
          **************************************************************************/
-        public double[] find_centre(int i, int j, int k, int grid_type)
+        public static double[] find_centre(int i, int j, int k, int grid_type)
         {
             double[] centre = new double[3];
 
@@ -122,7 +122,7 @@ namespace FastFluidSolver
         /***********************************************************************
          * Find the bounding indices for a linear interpolation
          **********************************************************************/
-        public void find_bounding_indices(double centre, double coordinate, int i, out int imin, out int imax)
+        public static void find_bounding_indices(double centre, double coordinate, int i, out int imin, out int imax)
         {
             if (centre > coordinate)
             {
