@@ -14,17 +14,17 @@ namespace FastFluidSolver
      * Euler in time.
      * 
      * u[i, j, k] located at (i*hx, (j-0.5)*hy, (k-0.5)*hz)
-     * i = 0, ..., Nx - 1, j = 0, ... Ny + 1, k = 0, ..., Nz + 1
+     * i = 0, ..., Nx, j = 0, ... Ny + 1, k = 0, ..., Nz + 1
      * u[0, j, k] and u[Nx-1, j, k] on boundary
      * u[i, 0, k], u[i, j, 0], u[i, Ny+1, k], u[i, j, Nz+1] inside obstacle cell
      * 
      * v[i, j, k] located at ((i-0.5*hx), j*hy, (k-0.5)*hz)
-     * i = 0, ..., Nx + 1, j = 0, ... Ny - 1, k = 0, ..., Nz + 1
+     * i = 0, ..., Nx + 1, j = 0, ... Ny, k = 0, ..., Nz + 1
      * v[i, 0, k] and v[i, Ny-1, k] on boundary
      * v[0, j, k], v[i, j, 0], v[Nx+1, j, k], v[i, j, Nz+1] inside obstacle cell
      * 
      * w[i, j, k] located at((i-0.5)*hx, (j-0.5)*hy, k*hz)
-     * i = 0, ..., Nx + 1, j = 0, ... Ny + 1, k = 0, ..., Nz - 1 
+     * i = 0, ..., Nx + 1, j = 0, ... Ny + 1, k = 0, ..., Nz 
      * w[i, j, 0] and w[i, j, Nz-1] on boundary
      * w[0, j, k], w[i, 0, k], w[Nx+1, j, k], w[i, Ny+1, k] inside obstacle cell
      *  
@@ -35,7 +35,7 @@ namespace FastFluidSolver
     public class FluidSolver
     {
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
-        const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
+        const double TOL = 1e-8; //maximum relative error for Gauss-Seidel solver
 
         public double[, ,] u; // x component of velocity
         public double[, ,] v;// y component of velocity
@@ -153,7 +153,7 @@ namespace FastFluidSolver
          ****************************************************************************/
         void project()
         {
-            double[, ,] div = new double[Nx, Ny, Nz];
+            double[, ,] div = new double[Nx - 1, Ny - 1, Nz - 1];
 
             // calculate div(w) using second order finite differences
             for (int i = 0; i < Nx; i++)
@@ -229,6 +229,7 @@ namespace FastFluidSolver
          ********************************************************************************/
         void apply_boundary_conditions()
         {
+            //loop over all cells
             for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
@@ -247,7 +248,7 @@ namespace FastFluidSolver
 
                             if (omega.boundary_normal_x[i, j, k] == 1) //boundary is to the +x side of cell
                             {
-                                u[i + 1, j, k] = omega.boundary_u[i + 1, j, k];
+                                u[i, j, k] = omega.boundary_u[i + 1, j, k];
                                 v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j, k];
                                 w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
                                 p[i + 1, j, k] = p[i, j, k];
@@ -264,7 +265,7 @@ namespace FastFluidSolver
                             if (omega.boundary_normal_y[i, j, k] == 1)//boundary is on the +y side of cell
                             {
                                 u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i, j, k];
-                                v[i, j + 1, k] = omega.boundary_v[i, j + 1, k];
+                                v[i, j, k] = omega.boundary_v[i, j + 1, k];
                                 w[i, j + 1, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
                                 p[i, j + 1, k] = p[i, j, k];
                             }
@@ -273,7 +274,7 @@ namespace FastFluidSolver
                             {
                                 u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i, j, k];
                                 v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j, k];
-                                w[i, j, k - 1] = omega.boundary_w[i, j, k];
+                                w[i, j, k - 1] = omega.boundary_w[i, j, k - 1];
                                 p[i, j, k - 1] = p[i, j, k];
                             }
 
@@ -281,7 +282,7 @@ namespace FastFluidSolver
                             {
                                 u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
                                 v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j, k];
-                                w[i, j, k + 1] = omega.boundary_w[i, j, k];
+                                w[i, j, k] = omega.boundary_w[i, j, k + 1];
                                 p[i, j, k + 1] = p[i, j, k];
                             }
                         }

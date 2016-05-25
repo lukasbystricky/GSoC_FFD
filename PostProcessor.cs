@@ -28,8 +28,8 @@ namespace FastFluidSolver
         public void export_vtk(String fname, int Nx, int Ny, int Nz)
         {
             double hx = omega.length_x / Nx;
-            double hy = omega.length_y / Nx;
-            double hz = omega.length_z / Nx;
+            double hy = omega.length_y / Ny;
+            double hz = omega.length_z / Nz;
 
             double[, ,] p;
             double[, ,] u;
@@ -65,7 +65,7 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0} {1} {2}", fs.u[i, j, k], fs.v[i, j, k], fs.w[i, j, k]);
+                            sw.WriteLine("{0} {1} {2}", u[i, j, k], v[i, j, k], w[i, j, k]);
                         }
                     }
                 }
@@ -78,7 +78,7 @@ namespace FastFluidSolver
                     {
                         for (int k = 0; k < Nz; k++)
                         {
-                            sw.WriteLine("{0}", fs.p[i, j, k]);
+                            sw.WriteLine("{0}", p[i, j, k]);
                         }
                     }
                 }
@@ -88,6 +88,8 @@ namespace FastFluidSolver
         /************************************************************************************
          * Interpolates pressures and velocities from fs to a grid with Nx cells in x direction
          * Ny cells in y direction and Nz cells in z direction
+         * 
+         * TO DO: implement in parallel 
          ***********************************************************************************/
         private void interpolate_to_grid(int Nx, int Ny, int Nz, out double[, ,] p_interp,
                         out double[, ,] u_interp, out double[, ,] v_interp, out double[, ,] w_interp)
@@ -101,7 +103,6 @@ namespace FastFluidSolver
             double hy_interp = omega.length_y / Ny;
             double hz_interp = omega.length_z / Nz;
 
-            int[] ncells_fs = new int[] { omega.Nx, omega.Ny, omega.Nz };
             double[] spacing_fs = new double[] { omega.hx, omega.hy, omega.hz };
             double[] coordinate = new double[3];
 
@@ -111,14 +112,14 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < Nz; k++)
                     {
-                        coordinate[0] = (i + 1) * hx_interp;
-                        coordinate[1] = (j + 1) * hy_interp;
-                        coordinate[2] = (k + 1) * hz_interp;
+                        coordinate[0] = i * hx_interp + spacing_fs[0];
+                        coordinate[1] = j * hy_interp + spacing_fs[1];
+                        coordinate[2] = k * hz_interp + spacing_fs[2];
 
-                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs, ncells_fs);
-                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs, ncells_fs);
-                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing_fs, ncells_fs);
-                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing_fs, ncells_fs);
+                        p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs);
+                        u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs);
+                        v_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.v, 3, spacing_fs);
+                        w_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.w, 4, spacing_fs);
                     }
                 }
             }

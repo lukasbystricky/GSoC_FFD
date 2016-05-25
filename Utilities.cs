@@ -12,29 +12,71 @@ namespace FastFluidSolver
          * Performs a trilinear interpolation 
         ****************************************************************************/
         public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, 
-            double[] spacings, int[] ncells)
+            double[] spacings)
         {
             double hx = spacings[0];
             double hy = spacings[1];
             double hz = spacings[2];
 
-            int Nx = ncells[0];
-            int Ny = ncells[1];
-            int Nz = ncells[2];
+            int Nx = array.GetLength(0);
+            int Ny = array.GetLength(1);
+            int Nz = array.GetLength(2);
 
-            int i = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
-            int j = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
-            int k = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
 
-            int imin, imax, jmin, jmax, kmin, kmax;
+            //Find grid cell that contains point
+            int imin, jmin, kmin, imax, jmax, kmax;
+            imin = imax = jmin = jmax = kmin = kmax = 0;
+
+            double[] grid_offset = new double[3];
+            switch (grid_type)
+            {
+                case 1://pressure grid
+                    grid_offset[0] = 0.5;
+                    grid_offset[1] = 0.5;
+                    grid_offset[2] = 0.5;
+
+                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
+                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
+                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
+
+                    break;
+
+                case 2: //u velocity
+                    grid_offset[1] = 0.5;
+                    grid_offset[2] = 0.5;
+
+                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
+                    jmin = Math.Min((int)Math.Floor((coordinate[1] - 0.5 * hy) / hy), Ny - 1);
+                    kmin = Math.Min((int)Math.Floor((coordinate[2] - 0.5 * hz) / hz), Nz - 1);
+
+                    break;
+
+                case 3: //v velocity
+                    grid_offset[0] = 0.5;
+                    grid_offset[2] = 0.5;
+
+                    imin = Math.Min((int)Math.Floor((coordinate[0] - 0.5 * hx) / hx), Nx - 1);
+                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
+                    kmin = Math.Min((int)Math.Floor((coordinate[2] - 0.5 * hz) / hz), Nz - 1);
+
+                    break;
+
+                case 4://w velocity
+                    grid_offset[0] = 0.5;
+                    grid_offset[1] = 0.5;
+
+                    imin = Math.Min((int)Math.Floor((coordinate[0] - 0.5 * hx)/ hx), Nx - 1);
+                    jmin = Math.Min((int)Math.Floor((coordinate[1] - 0.5 * hy)/ hy), Ny - 1);
+                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
+
+                    break;
+            }
+            
             double[] corner_values = new double[8];
 
-            // interpolate pressure values
-            // pressure values are given at centre of cell
-            double[] centre = find_centre(i, j, k, spacings, grid_type);
-            find_bounding_indices(centre[0], coordinate[0], i, out imin, out imax, Nx);
-            find_bounding_indices(centre[1], coordinate[1], j, out jmin, out jmax, Ny);
-            find_bounding_indices(centre[2], coordinate[2], k, out kmin, out kmax, Nz);
+            imax = imin + 1;
+            jmax = jmin + 1;
+            kmax = kmin + 1;
 
             corner_values[0] = array[imin, jmin, kmin];
             corner_values[1] = array[imax, jmin, kmin];
@@ -45,19 +87,21 @@ namespace FastFluidSolver
             corner_values[6] = array[imin, jmax, kmax];
             corner_values[7] = array[imax, jmax, kmax];
 
-            double x = coordinate[0] - hx * imin;
-            double y = coordinate[1] - hy * jmin;
-            double z = coordinate[2] - hz * kmin;
+           
 
-            double c00 = corner_values[0] * (hx - x) + corner_values[1] * x;
-            double c01 = corner_values[2] * (hx - x) + corner_values[3] * x;
-            double c10 = corner_values[4] * (hx - x) + corner_values[5] * x;
-            double c11 = corner_values[6] * (hx - x) + corner_values[7] * x;
+            double x = (coordinate[0] - hx * imin) / hx - grid_offset[0];
+            double y = (coordinate[1] - hy * jmin) / hy - grid_offset[1];
+            double z = (coordinate[2] - hz * kmin) / hz - grid_offset[2];
 
-            double c0 = c00 * (hy - y) + c10 * y;
-            double c1 = c01 * (hy - y) + c11 * y;
+            double c00 = corner_values[0] * (1 - x) + corner_values[1] * x;
+            double c01 = corner_values[2] * (1 - x) + corner_values[3] * x;
+            double c10 = corner_values[4] * (1 - x) + corner_values[5] * x;
+            double c11 = corner_values[6] * (1 - x) + corner_values[7] * x;
 
-            return c0 * (hz - z) + c1 * z;
+            double c0 = c00 * (1 - y) + c10 * y;
+            double c1 = c01 * (1 - y) + c11 * y;
+
+            return c0 * (1 - z) + c1 * z;
         }
 
         /**************************************************************************
@@ -82,70 +126,8 @@ namespace FastFluidSolver
                 }
             }
 
-            diff = Math.Sqrt(diff) / (Sx * Sy * Sz);
+            diff = Math.Sqrt(diff) / Math.Sqrt(Sx * Sy * Sz);
             return diff;
-        }
-
-        /***************************************************************************
-         * Find cartestian coordinates of centre of cell i, j, k
-         **************************************************************************/
-        public static double[] find_centre(int i, int j, int k, double[] spacings, int grid_type)
-        {
-            double[] centre = new double[3];
-
-            double hx = spacings[0];
-            double hy = spacings[0];
-            double hz = spacings[0];
-
-            switch (grid_type)
-            {
-                case 1:
-                    centre[0] = Math.Floor(i / hx) + hx / 2;
-                    centre[1] = Math.Floor(j / hy) + hy / 2;
-                    centre[2] = Math.Floor(k / hz) + hz / 2;
-                    break;
-
-                case 2:
-                    centre[0] = Math.Floor(i / hx);
-                    centre[1] = Math.Floor(j / hy) + hy / 2;
-                    centre[2] = Math.Floor(k / hz) + hz / 2;
-                    break;
-
-                case 3:
-                    centre[0] = Math.Floor(i / hx) + hx / 2;
-                    centre[1] = Math.Floor(j / hy);
-                    centre[2] = Math.Floor(k / hz) + hz / 2;
-                    break;
-
-                case 4:
-                    centre[0] = Math.Floor(i / hx) + hx / 2;
-                    centre[1] = Math.Floor(j / hy) + hy / 2;
-                    centre[2] = Math.Floor(k / hz);
-                    break;
-
-            }
-
-            return centre;
-        }
-
-        /***********************************************************************
-         * Find the bounding indices for a linear interpolation
-         **********************************************************************/
-        public static void find_bounding_indices(double centre, double coordinate, int i, out int imin, out int imax, int N)
-        {
-            if (centre > coordinate)
-            {
-                imin = i - 1;
-                imax = i;
-            }
-            else
-            {
-                imin = i;
-                imax = i + 1;
-            }
-
-            imin = Math.Max(imin, 0);
-            imax = Math.Min(imax, N);
         }
     }
 }
