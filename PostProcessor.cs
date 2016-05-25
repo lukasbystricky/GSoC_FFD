@@ -24,6 +24,8 @@ namespace FastFluidSolver
         /*****************************************************************************
         * Export data to a VTK file for visualization, based on file format guide here:
         * http://www.vtk.org/wp-content/uploads/2015/04/file-formats.pdf
+         * 
+         * Nx, Ny, Nz are the number of CELLS (not points) in each direction.
         ****************************************************************************/
         public void export_vtk(String fname, int Nx, int Ny, int Nz)
         {
@@ -43,27 +45,31 @@ namespace FastFluidSolver
                 sw.WriteLine("# vtk DataFile Version 3.0");
                 sw.WriteLine("Fast Fluid Dynamics data\n");
                 sw.WriteLine("ASCII");
-                sw.WriteLine("DATASET STRUCTURED_GRID");
-                sw.WriteLine("DIMENSIONS {0} {1} {2}", Nx, Ny, Nz);
-                sw.WriteLine("POINTS {0} double", Nx * Ny * Nz);
-                for (int i = 0; i < Nx; i++)
+                sw.WriteLine("DATASET RECTILINEAR_GRID");
+                sw.WriteLine("DIMENSIONS {0} {1} {2}", Nx + 1, Ny + 1, Nz + 1);
+                sw.WriteLine("X_COORDINATES {0} double", (Nx + 1));
+                for (int i = 0; i < Nx + 1; i++)
                 {
-                    for (int j = 0; j < Ny; j++)
-                    {
-                        for (int k = 0; k < Nz; k++)
-                        {
-                            sw.WriteLine("{0} {1} {2}", hx * (i + 1), hy * (j + 1), hz * (k + 1));
-                        }
-                    }
+                    sw.WriteLine("{0}", hx * i);
+                }
+                sw.WriteLine("Y_COORDINATES {0} double", (Ny + 1));
+                for (int i = 0; i < Ny + 1; i++)
+                {
+                    sw.WriteLine("{0}", hy * i);
+                }
+                sw.WriteLine("Z_COORDINATES {0} double", (Nz + 1));
+                for (int i = 0; i < Nz + 1; i++)
+                {
+                    sw.WriteLine("{0}", hz * i);
                 }
 
-                sw.WriteLine("POINT_DATA {0}", Nx * Ny * Nz);
+                sw.WriteLine("POINT_DATA {0}", (Nx + 1) * (Ny + 1) * (Nz + 1));
                 sw.WriteLine("VECTORS velocity double");
-                for (int i = 0; i < Nx; i++)
+                for (int k = 0; k < Nz + 1; k++)
                 {
-                    for (int j = 0; j < Ny; j++)
+                    for (int j = 0; j < Ny + 1; j++)
                     {
-                        for (int k = 0; k < Nz; k++)
+                        for (int i = 0; i < Nx + 1; i++)
                         {
                             sw.WriteLine("{0} {1} {2}", u[i, j, k], v[i, j, k], w[i, j, k]);
                         }
@@ -72,11 +78,11 @@ namespace FastFluidSolver
 
                 sw.WriteLine("SCALARS pressure double {0}", 1);
                 sw.WriteLine("LOOKUP_TABLE default");
-                for (int i = 0; i < Nz; i++)
+                for (int k = 0; k < Nz + 1; k++)
                 {
-                    for (int j = 0; j < Ny; j++)
+                    for (int j = 0; j < Ny + 1; j++)
                     {
-                        for (int k = 0; k < Nz; k++)
+                        for (int i = 0; i < Nx + 1; i++)
                         {
                             sw.WriteLine("{0}", p[i, j, k]);
                         }
@@ -89,15 +95,16 @@ namespace FastFluidSolver
          * Interpolates pressures and velocities from fs to a grid with Nx cells in x direction
          * Ny cells in y direction and Nz cells in z direction
          * 
+         * Nx, Ny, Nz are the number of CELLS (not points) in each direction.
          * TO DO: implement in parallel 
          ***********************************************************************************/
         private void interpolate_to_grid(int Nx, int Ny, int Nz, out double[, ,] p_interp,
                         out double[, ,] u_interp, out double[, ,] v_interp, out double[, ,] w_interp)
         {
-            p_interp = new double[Nx, Ny, Nz];
-            u_interp = new double[Nx, Ny, Nz];
-            v_interp = new double[Nx, Ny, Nz];
-            w_interp = new double[Nx, Ny, Nz];
+            p_interp = new double[Nx + 1, Ny + 1, Nz + 1];
+            u_interp = new double[Nx + 1, Ny + 1, Nz + 1];
+            v_interp = new double[Nx + 1, Ny + 1, Nz + 1];
+            w_interp = new double[Nx + 1, Ny + 1, Nz + 1];
 
             double hx_interp = omega.length_x / Nx;
             double hy_interp = omega.length_y / Ny;
@@ -106,11 +113,11 @@ namespace FastFluidSolver
             double[] spacing_fs = new double[] { omega.hx, omega.hy, omega.hz };
             double[] coordinate = new double[3];
 
-            for (int i = 0; i < Nx; i++)
+            for (int i = 0; i < Nx + 1; i++)
             {
-                for (int j = 0; j < Ny; j++)
+                for (int j = 0; j < Ny + 1; j++)
                 {
-                    for (int k = 0; k < Nz; k++)
+                    for (int k = 0; k < Nz + 1; k++)
                     {
                         coordinate[0] = i * hx_interp + spacing_fs[0];
                         coordinate[1] = j * hy_interp + spacing_fs[1];

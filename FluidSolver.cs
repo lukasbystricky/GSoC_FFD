@@ -96,7 +96,7 @@ namespace FastFluidSolver
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, u_old, 0, w.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);
         }
 
         /****************************************************************************
@@ -164,8 +164,8 @@ namespace FastFluidSolver
                     {
                         if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            div[i, j, k] = (u[i + 1, j, k] - u[i, j, k]) / hx +
-                                   (v[i, j + 1, k] - v[i, j, k]) / hy + (w[i, j, k + 1] - w[i, j, k]) / hz;                      
+                            div[i, j, k] = (u[i, j, k] - u[i - 1, j, k]) / hx +
+                                   (v[i, j, k] - v[i, j - 1, k]) / hy + (w[i, j, k] - w[i, j, k - 1]) / hz;                      
                         }
                     }
                 }
@@ -303,9 +303,11 @@ namespace FastFluidSolver
 
             project();
 
+            //apply_boundary_conditions();
+
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, u_old, 0, w.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);
         }
 
         /*****************************************************************************
