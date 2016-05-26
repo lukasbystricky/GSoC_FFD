@@ -35,7 +35,7 @@ namespace FastFluidSolver
     public class FluidSolver
     {
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
-        const double TOL = 1e-8; //maximum relative error for Gauss-Seidel solver
+        const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
 
         public double[, ,] u; // x component of velocity
         public double[, ,] v;// y component of velocity
@@ -137,6 +137,9 @@ namespace FastFluidSolver
             double a = 1 + 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
             double[] c = new double[6];
 
+            double[, ,] b = new double[x_old.GetLength(0), x_old.GetLength(1), x_old.GetLength(2)];
+            Array.Copy(x_old, 0, b, 0, x_old.Length);
+
             c[0] = -dt * nu * Math.Pow(hz, -2);
             c[1] = -dt * nu * Math.Pow(hy, -2);
             c[2] = -dt * nu * Math.Pow(hx, -2);
@@ -144,7 +147,7 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, x_old, x_old, ref x_new);
+            gs_solve(a, c, b, x_old, ref x_new);
         }
 
         /*****************************************************************************
@@ -171,12 +174,12 @@ namespace FastFluidSolver
                 }
             }
 
-            double a = 2 * nu * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
+            double a = -2 * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
             double[] c = new double[6];
 
-            c[0] = -nu * Math.Pow(hz, -2);
-            c[1] = -nu * Math.Pow(hy, -2);
-            c[2] = -nu * Math.Pow(hx, -2);
+            c[0] = Math.Pow(hz, -2);
+            c[1] = Math.Pow(hy, -2);
+            c[2] = Math.Pow(hx, -2);
             c[3] = c[2];
             c[4] = c[1];
             c[5] = c[0];
@@ -303,7 +306,7 @@ namespace FastFluidSolver
 
             project();
 
-            //apply_boundary_conditions();
+            apply_boundary_conditions();
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
@@ -333,8 +336,12 @@ namespace FastFluidSolver
 
             int iter = 0;
             double res = 2 * TOL;
+
+            apply_boundary_conditions();
+
             while (iter < MAX_ITER && res > TOL)
             {
+
                 for (int i = 1; i < Sx - 1; i++)
                 {
                     for (int j = 1; j < Sy - 1; j++)

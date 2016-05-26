@@ -119,9 +119,9 @@ namespace FastFluidSolver
                 {
                     for (int k = 0; k < Nz + 1; k++)
                     {
-                        coordinate[0] = i * hx_interp + spacing_fs[0];
-                        coordinate[1] = j * hy_interp + spacing_fs[1];
-                        coordinate[2] = k * hz_interp + spacing_fs[2];
+                        coordinate[0] = i * hx_interp;
+                        coordinate[1] = j * hy_interp;
+                        coordinate[2] = k * hz_interp;
 
                         p_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.p, 1, spacing_fs);
                         u_interp[i, j, k] = Utilities.trilinear_interpolation(coordinate, fs.u, 2, spacing_fs);

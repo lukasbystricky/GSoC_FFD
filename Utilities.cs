@@ -31,9 +31,9 @@ namespace FastFluidSolver
             switch (grid_type)
             {
                 case 1://pressure grid
-                    grid_offset[0] = 0.5;
-                    grid_offset[1] = 0.5;
-                    grid_offset[2] = 0.5;
+                    grid_offset[0] = -0.5;
+                    grid_offset[1] = -0.5;
+                    grid_offset[2] = -0.5;
 
                     imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 2);
                     jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 2);
@@ -42,47 +42,32 @@ namespace FastFluidSolver
                     break;
 
                 case 2: //u velocity
-                    grid_offset[1] = 0.5;
-                    grid_offset[2] = 0.5;
+                    grid_offset[1] = -0.5;
+                    grid_offset[2] = -0.5;
 
                     imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor((coordinate[1] - 0.5 * hy) / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor((coordinate[2] - 0.5 * hz) / hz), Nz - 2);
-
-                    if (coordinate[0] % hx == 0)
-                    {
-                        imin--;
-                    }
+                    jmin = Math.Min((int)Math.Floor((coordinate[1] + 0.5 * hy) / hy), Ny - 2);
+                    kmin = Math.Min((int)Math.Floor((coordinate[2] + 0.5 * hz) / hz), Nz - 2);
 
                     break;
 
                 case 3: //v velocity
-                    grid_offset[0] = 0.5;
-                    grid_offset[2] = 0.5;
+                    grid_offset[0] = -0.5;
+                    grid_offset[2] = -0.5;
 
-                    imin = Math.Min((int)Math.Floor((coordinate[0] - 0.5 * hx) / hx), Nx - 2);
+                    imin = Math.Min((int)Math.Floor((coordinate[0] + 0.5 * hx) / hx), Nx - 2);
                     jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor((coordinate[2] - 0.5 * hz) / hz), Nz - 2);
-
-                    if (coordinate[1] % hy == 0)
-                    {
-                        jmin--;
-                    }
+                    kmin = Math.Min((int)Math.Floor((coordinate[2] + 0.5 * hz) / hz), Nz - 2);
 
                     break;
 
                 case 4://w velocity
-                    grid_offset[0] = 0.5;
-                    grid_offset[1] = 0.5;
+                    grid_offset[0] = -0.5;
+                    grid_offset[1] = -0.5;
 
-                    imin = Math.Min((int)Math.Floor((coordinate[0] - 0.5 * hx)/ hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor((coordinate[1] - 0.5 * hy)/ hy), Ny - 2);
+                    imin = Math.Min((int)Math.Floor((coordinate[0] + 0.5 * hx)/ hx), Nx - 2);
+                    jmin = Math.Min((int)Math.Floor((coordinate[1] + 0.5 * hy)/ hy), Ny - 2);
                     kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 2);
-
-                    if (coordinate[2] % hz == 0)
-                    {
-                        kmin--;
-                    }
 
                     break;
             }
