@@ -6,20 +6,22 @@ using System.Threading.Tasks;
 
 namespace FastFluidSolver
 {
-    public class CavityDomain : Domain
+    class PipeDomain : Domain
     {
-        /***************************************************************************
-         * Constructor
-         **************************************************************************/
-        public CavityDomain(int Nx, int Ny, int Nz)
-        {
+        //Definition of the benchmark pipe domain given in Turek and Schafer
+         public PipeDomain(int Nx, int Ny, int Nz)
+         {
             this.Nx = Nx;
             this.Ny = Ny;
             this.Nz = Nz;
 
-            length_x = 1;
+            length_x = 2.5;
+            length_y = 0.41;
+            length_z = 0.41;
+
+            /*length_x = 1;
             length_y = 1;
-            length_z = 1;
+            length_z = 1;*/
 
             hx = length_x / (Nx - 2);
             hy = length_y / (Ny - 2);
@@ -34,9 +36,11 @@ namespace FastFluidSolver
             boundary_v = new double[Nx, Ny, Nz];
             boundary_w = new double[Nx, Ny, Nz];
 
+             double U_inflow = 0.45;
+
             //C# default values for int or double arrays are 0, so we only need to set nonzero fields
 
-            //x = 0 and x = 1 boundaries
+            //x = 0 and x = 2.2 boundaries
             for (int j = 0; j < Ny; j++)
             {
                 for (int k = 0; k < Nz; k++)
@@ -45,10 +49,15 @@ namespace FastFluidSolver
                     {
                         boundary_cells[1, j, k] = 1;
                         boundary_cells[Nx - 2, j, k] = 1;
-
                         boundary_normal_x[1, j, k] = -1;
-                        boundary_normal_x[Nx - 2, j, k] = 1;
+                        boundary_normal_x[Nx - 2, j, k] = 1;                        
                     }
+
+                    double y = j * hy - hy / 2;
+                    double z = k * hz - hz / 2;
+
+                    boundary_u[0, j, k] = 16 * U_inflow * (y * (y - length_y) * z * (z - length_z));
+                    boundary_u[Nx - 1, j, k] = 16 * U_inflow * (y * (y - length_y) * z * (z - length_z));
 
                     obstacle_cells[0, j, k] = 1;
                     obstacle_cells[Nx - 1, j, k] = 1;
@@ -89,8 +98,6 @@ namespace FastFluidSolver
 
                     obstacle_cells[i, j, 0] = 1;
                     obstacle_cells[i, j, Nz - 1] = 1;
-
-                    boundary_u[i, j, Nz - 1] = 1;
                 }
             }
         }
@@ -98,7 +105,7 @@ namespace FastFluidSolver
         /***********************************************************************
          * Copy constructor
          ***********************************************************************/
-        public CavityDomain(CavityDomain old)
+        public PipeDomain(CavityDomain old)
         {
             Nx = old.Nx;
             Ny = old.Ny;

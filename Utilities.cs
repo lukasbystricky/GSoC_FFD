@@ -27,6 +27,9 @@ namespace FastFluidSolver
             int imin, jmin, kmin, imax, jmax, kmax;
             imin = imax = jmin = jmax = kmin = kmax = 0;
 
+            double x, y, z;
+            x = y = z = 0;
+
             double[] grid_offset = new double[3];
             switch (grid_type)
             {
@@ -35,9 +38,13 @@ namespace FastFluidSolver
                     grid_offset[1] = -0.5;
                     grid_offset[2] = -0.5;
 
-                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 2);
+                    x = (coordinate[0]) % hx + 0.5;
+                    y = (coordinate[1]) % hy + 0.5;
+                    z = (coordinate[2]) % hz + 0.5;
+
+                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
+                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
+                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);                    
 
                     break;
 
@@ -45,9 +52,13 @@ namespace FastFluidSolver
                     grid_offset[1] = -0.5;
                     grid_offset[2] = -0.5;
 
+                    x = (coordinate[0]) % hx;
+                    y = (coordinate[1]) % hy + 0.5;
+                    z = (coordinate[2]) % hz + 0.5;
+
                     imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor((coordinate[1] + 0.5 * hy) / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor((coordinate[2] + 0.5 * hz) / hz), Nz - 2);
+                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
+                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);
 
                     break;
 
@@ -55,9 +66,13 @@ namespace FastFluidSolver
                     grid_offset[0] = -0.5;
                     grid_offset[2] = -0.5;
 
-                    imin = Math.Min((int)Math.Floor((coordinate[0] + 0.5 * hx) / hx), Nx - 2);
+                    x = (coordinate[0]) % hx + 0.5;
+                    y = (coordinate[1]) % hy;
+                    z = (coordinate[2]) % hz + 0.5;
+
+                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
                     jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor((coordinate[2] + 0.5 * hz) / hz), Nz - 2);
+                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);
 
                     break;
 
@@ -65,18 +80,26 @@ namespace FastFluidSolver
                     grid_offset[0] = -0.5;
                     grid_offset[1] = -0.5;
 
-                    imin = Math.Min((int)Math.Floor((coordinate[0] + 0.5 * hx)/ hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor((coordinate[1] + 0.5 * hy)/ hy), Ny - 2);
+                    x = (coordinate[0]) % hx + 0.5;
+                    y = (coordinate[1]) % hy + 0.5;
+                    z = (coordinate[2]) % hz;
+
+                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
+                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
                     kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 2);
 
                     break;
             }
-            
-            double[] corner_values = new double[8];
+
+           /* imin = Math.Min((int)Math.Ceiling(coordinate[0] / hx + grid_offset[0]), Nx - 2);
+            jmin = Math.Min((int)Math.Ceiling(coordinate[1] / hy + grid_offset[1]), Ny - 2);
+            kmin = Math.Min((int)Math.Ceiling(coordinate[2] / hz + grid_offset[2]), Nz - 2);*/
 
             imax = imin + 1;
             jmax = jmin + 1;
             kmax = kmin + 1;
+
+            double[] corner_values = new double[8];            
 
             corner_values[0] = array[imin, jmin, kmin];
             corner_values[1] = array[imax, jmin, kmin];
@@ -85,11 +108,11 @@ namespace FastFluidSolver
             corner_values[4] = array[imin, jmax, kmin];
             corner_values[5] = array[imax, jmax, kmin];
             corner_values[6] = array[imin, jmax, kmax];
-            corner_values[7] = array[imax, jmax, kmax];           
+            corner_values[7] = array[imax, jmax, kmax];
 
-            double x = (coordinate[0] - hx * imin) / hx - grid_offset[0];
-            double y = (coordinate[1] - hy * jmin) / hy - grid_offset[1];
-            double z = (coordinate[2] - hz * kmin) / hz - grid_offset[2];
+            /*double x = (coordinate[0] - hx * imin) / hx; // -grid_offset[0];
+            double y = (coordinate[1] - hy * jmin) / hy; // - grid_offset[1];
+            double z = (coordinate[2] - hz * kmin) / hz; // - grid_offset[2];*/
 
             double c00 = corner_values[0] * (1 - x) + corner_values[1] * x;
             double c01 = corner_values[2] * (1 - x) + corner_values[3] * x;
