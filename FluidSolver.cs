@@ -222,8 +222,65 @@ namespace FastFluidSolver
          * double[] velz - z velocity (either before advection if x is a velocity.
          * or after convection otherwise)
          **************************************************************************/
-        void advect(ref double[] x, double[] x0, double[] velx, double[] vely,  double[] velz)
+        void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
         {
+
+            int Sx = x.GetLength(0);
+            int Sy = x.GetLength(1);
+            int Sz = x.GetLength(2);
+
+            double[] spacings = new double[] { hx, hy, hz };
+
+            for (int i = 1; i < Sx; i++)
+            {
+                for (int j = 0; j < Sy; j++)
+                {
+                    for (int k = 0; k < Sz; k++)
+                    {
+                        //find coordinate of point
+                        double[] coordinate = new double[3];
+
+                        switch (grid_type)
+                        {
+                            case 1: //cell centred grid
+                                coordinate[0] = i * hx + 0.5;
+                                coordinate[1] = j * hy + 0.5;
+                                coordinate[2] = k * hz + 0.5;
+                                break;
+
+                            case 2: //x velocity
+                                coordinate[0] = i * hx;
+                                coordinate[1] = j * hy + 0.5;
+                                coordinate[2] = k * hz + 0.5;
+                                break;
+
+                            case 3: //y velocity
+                                coordinate[0] = i * hx + 0.5;
+                                coordinate[1] = j * hy;
+                                coordinate[2] = k * hz + 0.5;
+                                break;
+
+                            case 4: //z velocity
+                                coordinate[0] = i * hx + 0.5;
+                                coordinate[1] = j * hy + 0.5;
+                                coordinate[2] = k * hz;
+                                break;
+                        }
+
+                        //interpolate velocities as needed
+                        double u = Utilities.trilinear_interpolation(coordinate, velx, 2, spacings);
+                        double v = Utilities.trilinear_interpolation(coordinate, vely, 3, spacings);
+                        double w = Utilities.trilinear_interpolation(coordinate, velz, 4, spacings);
+
+                        //back step by dt
+                        coordinate[0] += dt * u;
+                        coordinate[1] += dt * v;
+                        coordinate[2] += dt * w;
+
+                        x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, spacings);
+                    }
+                }
+            }
         }
 
         /*********************************************************************************

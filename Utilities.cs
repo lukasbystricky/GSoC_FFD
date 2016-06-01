@@ -22,7 +22,6 @@ namespace FastFluidSolver
             int Ny = array.GetLength(1);
             int Nz = array.GetLength(2);
 
-
             //Find grid cell that contains point
             int imin, jmin, kmin, imax, jmax, kmax;
             imin = imax = jmin = jmax = kmin = kmax = 0;
@@ -30,78 +29,64 @@ namespace FastFluidSolver
             double x, y, z;
             x = y = z = 0;
 
-            double[] grid_offset = new double[3];
             switch (grid_type)
             {
                 case 1://pressure grid
-                    grid_offset[0] = -0.5;
-                    grid_offset[1] = -0.5;
-                    grid_offset[2] = -0.5;
 
                     x = (coordinate[0]) % hx + 0.5;
                     y = (coordinate[1]) % hy + 0.5;
                     z = (coordinate[2]) % hz + 0.5;
 
-                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);                    
+                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
+                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
+                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);                    
 
                     break;
 
                 case 2: //u velocity
-                    grid_offset[1] = -0.5;
-                    grid_offset[2] = -0.5;
 
                     x = (coordinate[0]) % hx;
                     y = (coordinate[1]) % hy + 0.5;
                     z = (coordinate[2]) % hz + 0.5;
 
-                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);
+                    imin = (int)Math.Floor(coordinate[0] / hx);
+                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
+                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);
 
                     break;
 
                 case 3: //v velocity
-                    grid_offset[0] = -0.5;
-                    grid_offset[2] = -0.5;
 
                     x = (coordinate[0]) % hx + 0.5;
                     y = (coordinate[1]) % hy;
                     z = (coordinate[2]) % hz + 0.5;
 
-                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0), Nz - 2);
+                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
+                    jmin = (int)Math.Floor(coordinate[1] / hy);
+                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);
 
                     break;
 
                 case 4://w velocity
-                    grid_offset[0] = -0.5;
-                    grid_offset[1] = -0.5;
 
                     x = (coordinate[0]) % hx + 0.5;
                     y = (coordinate[1]) % hy + 0.5;
                     z = (coordinate[2]) % hz;
 
-                    imin = Math.Min((int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0), Nx - 2);
-                    jmin = Math.Min((int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0), Ny - 2);
-                    kmin = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 2);
+                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
+                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
+                    kmin = (int)Math.Floor(coordinate[2] / hz);
 
                     break;
             }
 
-           /* imin = Math.Min((int)Math.Ceiling(coordinate[0] / hx + grid_offset[0]), Nx - 2);
-            jmin = Math.Min((int)Math.Ceiling(coordinate[1] / hy + grid_offset[1]), Ny - 2);
-            kmin = Math.Min((int)Math.Ceiling(coordinate[2] / hz + grid_offset[2]), Nz - 2);*/
-
-            imax = imin + 1;
-            jmax = jmin + 1;
-            kmax = kmin + 1;
+            imax = Math.Min(imin + 1, Nx - 1);
+            jmax = Math.Min(jmin + 1, Ny - 1);
+            kmax = Math.Min(kmin + 1, Nz - 1);
 
             double[] corner_values = new double[8];            
 
-            corner_values[0] = array[imin, jmin, kmin];
+            /*corner_values[0] = array[imin, jmin, kmin];
             corner_values[1] = array[imax, jmin, kmin];
             corner_values[2] = array[imin, jmin, kmax];
             corner_values[3] = array[imax, jmin, kmax];
@@ -109,10 +94,6 @@ namespace FastFluidSolver
             corner_values[5] = array[imax, jmax, kmin];
             corner_values[6] = array[imin, jmax, kmax];
             corner_values[7] = array[imax, jmax, kmax];
-
-            /*double x = (coordinate[0] - hx * imin) / hx; // -grid_offset[0];
-            double y = (coordinate[1] - hy * jmin) / hy; // - grid_offset[1];
-            double z = (coordinate[2] - hz * kmin) / hz; // - grid_offset[2];*/
 
             double c00 = corner_values[0] * (1 - x) + corner_values[1] * x;
             double c01 = corner_values[2] * (1 - x) + corner_values[3] * x;
@@ -122,7 +103,23 @@ namespace FastFluidSolver
             double c0 = c00 * (1 - y) + c10 * y;
             double c1 = c01 * (1 - y) + c11 * y;
 
-            return c0 * (1 - z) + c1 * z;
+            return c0 * (1 - z) + c1 * z;*/
+
+            corner_values[0] = array[imin, jmin, kmin];
+            corner_values[1] = array[imax, jmin, kmin];
+            corner_values[2] = array[imin, jmax, kmin];
+            corner_values[3] = array[imin, jmin, kmax];
+            corner_values[4] = array[imax, jmin, kmax];
+            corner_values[5] = array[imin, jmax, kmax];
+            corner_values[6] = array[imax, jmax, kmin];
+            corner_values[7] = array[imax, jmax, kmax];
+
+            double v = corner_values[0] * (1 - x) * (1 - y) * (1 - z) + corner_values[1] * x * (1 - y) * (1 - z) +
+                    corner_values[2] * (1 - x) * y * (1 - z) + corner_values[3] * (1 - x) * (1 - y) * z +
+                    corner_values[4] * x * (1 - y) * z + corner_values[5] * (1 - x) * y * z +
+                    corner_values[6] * x * y * (1 - z) + corner_values[7] * x * y * z;
+
+            return v;
         }
 
         /**************************************************************************
