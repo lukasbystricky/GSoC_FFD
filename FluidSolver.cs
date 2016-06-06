@@ -187,16 +187,15 @@ namespace FastFluidSolver
             gs_solve(a, c, div, p_old, ref p);
 
             //update velocity by adding calculate grad(p), calculated using second order finite difference
-            //only need to add to interior points, as the velocity at boundary points has already been fixed
-            for (int i = 1; i < Nx - 1; i++)
+            for (int i = 0; i < Nx; i++)
             {
-                for (int j = 1; j < Ny - 1; j++)
+                for (int j = 0; j < Ny; j++)
                 {
-                    for (int k = 1; k < Nz - 1; k++)
+                    for (int k = 0; k < Nz; k++)
                     {
                         if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            if (omega.boundary_cells[i, j ,k] == 0) //node not on boundary, use second order finite differnce
+                            //if (omega.boundary_cells[i, j ,k] == 0)
                             {
                                 u[i, j, k] -= (p[i + 1, j, k] - p[i, j, k]) / hx;
                                 v[i, j, k] -= (p[i, j + 1, k] - p[i, j, k]) / hy;
@@ -224,13 +223,10 @@ namespace FastFluidSolver
          **************************************************************************/
         void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
         {
-
             int Sx = x.GetLength(0);
             int Sy = x.GetLength(1);
             int Sz = x.GetLength(2);
-
-            double[] spacings = new double[] { hx, hy, hz };
-
+ 
             for (int i = 1; i < Sx; i++)
             {
                 for (int j = 0; j < Sy; j++)
@@ -267,17 +263,25 @@ namespace FastFluidSolver
                                 break;
                         }
 
-                        //interpolate velocities as needed
-                        double u = Utilities.trilinear_interpolation(coordinate, velx, 2, spacings);
-                        double v = Utilities.trilinear_interpolation(coordinate, vely, 3, spacings);
-                        double w = Utilities.trilinear_interpolation(coordinate, velz, 4, spacings);
+                        //check if coordinate inside obstacle
+                        int idomain = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
+                        int jdomain = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
+                        int kdomain = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
 
-                        //back step by dt
-                        coordinate[0] += dt * u;
-                        coordinate[1] += dt * v;
-                        coordinate[2] += dt * w;
+                        if (omega.obstacle_cells[idomain, jdomain, kdomain] == 0)
+                        {
+                            //interpolate velocities as needed
+                            double u = Utilities.trilinear_interpolation(coordinate, velx, 2, omega);
+                            double v = Utilities.trilinear_interpolation(coordinate, vely, 3, omega);
+                            double w = Utilities.trilinear_interpolation(coordinate, velz, 4, omega);
 
-                        x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, spacings);
+                            //back step by dt
+                            coordinate[0] += dt * u;
+                            coordinate[1] += dt * v;
+                            coordinate[2] += dt * w;
+
+                            x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, omega);
+                        }
                     }
                 }
             }
@@ -380,6 +384,16 @@ namespace FastFluidSolver
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
+
+           /* advect(ref u, u_old, u_old, v_old, w_old, 2);
+            advect(ref v, v_old, u_old, v_old, w_old, 3);
+            advect(ref w, w_old, u_old, v_old, w_old, 4);
+
+            project();
+
+            Array.Copy(u, 0, u_old, 0, u.Length);
+            Array.Copy(v, 0, v_old, 0, v.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);*/
         }
 
         /*****************************************************************************
