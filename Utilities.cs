@@ -38,11 +38,11 @@ namespace FastFluidSolver
 
             switch (grid_type)
             {
-                case 1://pressure grid
+                case 1://cell centred grid
 
-                    x = (coordinate[0]) % hx + 0.5;
-                    y = (coordinate[1]) % hy + 0.5;
-                    z = (coordinate[2]) % hz + 0.5;
+                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
+                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
+                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz + 0.5;
 
                     imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
                     jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
@@ -51,10 +51,6 @@ namespace FastFluidSolver
                     break;
 
                 case 2: //u velocity
-
-                    /*x = (coordinate[0]) % hx;
-                    y = (coordinate[1]) % hy + 0.5;
-                    z = (coordinate[2]) % hz + 0.5;*/
 
                     x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx;
                     y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
@@ -68,9 +64,9 @@ namespace FastFluidSolver
 
                 case 3: //v velocity
 
-                    x = (coordinate[0]) % hx + 0.5;
-                    y = (coordinate[1]) % hy;
-                    z = (coordinate[2]) % hz + 0.5;
+                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
+                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz;
+                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz + 0.5;
 
                     imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
                     jmin = (int)Math.Floor(coordinate[1] / hy);
@@ -80,9 +76,9 @@ namespace FastFluidSolver
 
                 case 4://w velocity
 
-                    x = (coordinate[0]) % hx + 0.5;
-                    y = (coordinate[1]) % hy + 0.5;
-                    z = (coordinate[2]) % hz;
+                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
+                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
+                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz;
 
                     imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
                     jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
@@ -163,20 +159,20 @@ namespace FastFluidSolver
          * Checks if a point is inside the domain omega. Returns true if point
          * is inside domain or on a boundary, false otherwise
          ***********************************************************************/
-        private static bool in_domain(double[] coordinate, Domain omega)
+        public static bool in_domain(double[] coordinate, Domain omega)
         {
             double hx = omega.hx;
             double hy = omega.hy;
             double hz = omega.hz;
 
             //find domain cell that contains point
-            int idomain_min = Math.Min((int)Math.Floor((1 - EPS) * (coordinate[0] + hx) / hx), omega.Nx - 1);
-            int jdomain_min = Math.Min((int)Math.Floor((1 - EPS) * (coordinate[1] + hy) / hy), omega.Ny - 1);
-            int kdomain_min = Math.Min((int)Math.Floor((1 - EPS) * (coordinate[2] + hz) / hz), omega.Nz - 1);
+            int idomain_min = Math.Max(Math.Min((int)Math.Floor((1 - EPS) * (coordinate[0] + hx) / hx), omega.Nx - 1), 0);
+            int jdomain_min = Math.Max(Math.Min((int)Math.Floor((1 - EPS) * (coordinate[1] + hy) / hy), omega.Ny - 1), 0);
+            int kdomain_min = Math.Max(Math.Min((int)Math.Floor((1 - EPS) * (coordinate[2] + hz) / hz), omega.Nz - 1), 0);
 
-            int idomain_max = Math.Max((int)Math.Floor((1 + EPS) * (coordinate[0] + hx) / hx), 0);
-            int jdomain_max = Math.Max((int)Math.Floor((1 + EPS) * (coordinate[1] + hy) / hy), 0);
-            int kdomain_max = Math.Max((int)Math.Floor((1 + EPS) * (coordinate[2] + hz) / hz), 0);
+            int idomain_max = Math.Max(Math.Min((int)Math.Floor((1 + EPS) * (coordinate[0] + hx) / hx), omega.Nx - 1), 0);
+            int jdomain_max = Math.Max(Math.Min((int)Math.Floor((1 + EPS) * (coordinate[1] + hy) / hy), omega.Nx - 1), 0);
+            int kdomain_max = Math.Max(Math.Min((int)Math.Floor((1 + EPS) * (coordinate[2] + hz) / hz), omega.Nx - 1), 0);
 
 
             List<int> possibleCelli = new List<int>();

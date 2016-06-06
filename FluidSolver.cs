@@ -205,21 +205,24 @@ namespace FastFluidSolver
                     }
                 }
             }
+
+            apply_boundary_conditions();
         }
 
         /***************************************************************************
          * Advection step. Uses a first order backtrace to update x.
          * 
          * @inputs
-         * double[] x - reference to quantity to advect, can be a velocity, a
+         * double[, ,] x - reference to quantity to advect, can be a velocity, a
          * concentration or temperature
-         * double[] x0 - initial state of x before advection
-         * double[] velx - x velocity (either before advection if x is a velocity.
-         * or after convection otherwise)
-         * double[] vely - y velocity (either before advection if x is a velocity.
-         * or after convection otherwise)
-         * double[] velz - z velocity (either before advection if x is a velocity.
-         * or after convection otherwise)
+         * double[, ,] x0 - initial state of x before advection
+         * double[, ,] velx - x velocity
+         * double[, ,] vely - y velocity 
+         * double[, ,] velz - z velocity 
+         * int grid_type - specifies type of grid: 0 for cell centred, 1 for u velocity
+         *         2 for v velocity, 3 for w velocity
+         *         
+         * TO DO: implement in parallel
          **************************************************************************/
         void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
         {
@@ -227,7 +230,7 @@ namespace FastFluidSolver
             int Sy = x.GetLength(1);
             int Sz = x.GetLength(2);
  
-            for (int i = 1; i < Sx; i++)
+            for (int i = 0; i < Sx; i++)
             {
                 for (int j = 0; j < Sy; j++)
                 {
@@ -239,52 +242,45 @@ namespace FastFluidSolver
                         switch (grid_type)
                         {
                             case 1: //cell centred grid
-                                coordinate[0] = i * hx + 0.5;
-                                coordinate[1] = j * hy + 0.5;
-                                coordinate[2] = k * hz + 0.5;
+                                coordinate[0] = (i - 0.5) * hx;
+                                coordinate[1] = (j - 0.5) * hy;
+                                coordinate[2] = (k - 0.5) * hz;
                                 break;
 
                             case 2: //x velocity
                                 coordinate[0] = i * hx;
-                                coordinate[1] = j * hy + 0.5;
-                                coordinate[2] = k * hz + 0.5;
+                                coordinate[1] = (j - 0.5) * hy;
+                                coordinate[2] = (k - 0.5) * hz;
                                 break;
 
                             case 3: //y velocity
-                                coordinate[0] = i * hx + 0.5;
+                                coordinate[0] = (i - 0.5) * hx;
                                 coordinate[1] = j * hy;
-                                coordinate[2] = k * hz + 0.5;
+                                coordinate[2] = (k - 0.5) * hz;
                                 break;
 
                             case 4: //z velocity
-                                coordinate[0] = i * hx + 0.5;
-                                coordinate[1] = j * hy + 0.5;
+                                coordinate[0] = (i - 0.5) * hx;
+                                coordinate[1] = (j - 0.5) * hy;
                                 coordinate[2] = k * hz;
                                 break;
                         }
+                       
+                        double utmp = Utilities.trilinear_interpolation(coordinate, velx, 2, omega);
+                        double vtmp = Utilities.trilinear_interpolation(coordinate, vely, 3, omega);
+                        double wtmp = Utilities.trilinear_interpolation(coordinate, velz, 4, omega);
 
-                        //check if coordinate inside obstacle
-                        int idomain = Math.Min((int)Math.Floor(coordinate[0] / hx), Nx - 1);
-                        int jdomain = Math.Min((int)Math.Floor(coordinate[1] / hy), Ny - 1);
-                        int kdomain = Math.Min((int)Math.Floor(coordinate[2] / hz), Nz - 1);
+                        //back step by dt
+                        coordinate[0] -= dt * utmp;
+                        coordinate[1] -= dt * vtmp;
+                        coordinate[2] -= dt * wtmp;
 
-                        if (omega.obstacle_cells[idomain, jdomain, kdomain] == 0)
-                        {
-                            //interpolate velocities as needed
-                            double u = Utilities.trilinear_interpolation(coordinate, velx, 2, omega);
-                            double v = Utilities.trilinear_interpolation(coordinate, vely, 3, omega);
-                            double w = Utilities.trilinear_interpolation(coordinate, velz, 4, omega);
-
-                            //back step by dt
-                            coordinate[0] += dt * u;
-                            coordinate[1] += dt * v;
-                            coordinate[2] += dt * w;
-
-                            x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, omega);
-                        }
+                        x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, omega);                        
                     }
                 }
             }
+
+            apply_boundary_conditions();
         }
 
         /*********************************************************************************
@@ -379,13 +375,11 @@ namespace FastFluidSolver
 
             project();
 
-            apply_boundary_conditions();
-
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
 
-           /* advect(ref u, u_old, u_old, v_old, w_old, 2);
+           advect(ref u, u_old, u_old, v_old, w_old, 2);
             advect(ref v, v_old, u_old, v_old, w_old, 3);
             advect(ref w, w_old, u_old, v_old, w_old, 4);
 
@@ -393,7 +387,7 @@ namespace FastFluidSolver
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, w_old, 0, w.Length);*/
+            Array.Copy(w, 0, w_old, 0, w.Length);
         }
 
         /*****************************************************************************
