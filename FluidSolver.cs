@@ -219,8 +219,8 @@ namespace FastFluidSolver
          * double[, ,] velx - x velocity
          * double[, ,] vely - y velocity 
          * double[, ,] velz - z velocity 
-         * int grid_type - specifies type of grid: 0 for cell centred, 1 for u velocity
-         *         2 for v velocity, 3 for w velocity
+         * int grid_type - specifies type of grid: 1 for cell centred, 2 for u velocity
+         *         3 for v velocity, 4 for w velocity
          *         
          * TO DO: implement in parallel
          **************************************************************************/
@@ -275,6 +275,10 @@ namespace FastFluidSolver
                         coordinate[1] -= dt * vtmp;
                         coordinate[2] -= dt * wtmp;
 
+                        coordinate[0] = Math.Round(coordinate[0], 5);
+                        coordinate[1] = Math.Round(coordinate[1], 5);
+                        coordinate[2] = Math.Round(coordinate[2], 5);
+
                         x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, omega);                        
                     }
                 }
@@ -299,63 +303,137 @@ namespace FastFluidSolver
                         if (omega.boundary_cells[i, j, k] == 1)
                         {
                             if (omega.boundary_normal_x[i, j, k] == -1)//boundary is on the -x side of cell
-                            {
-                                u[i - 1, j, k] = omega.boundary_u[i - 1, j, k];
-                                v[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j, k];
-                                v[i - 1, j - 1, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j - 1, k];
-                                w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
-                                w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
+                            { 
                                 p[i - 1, j, k] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i - 1, j, k] = omega.boundary_u[i - 1, j, k];
+                                    v[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j, k];
+                                    v[i - 1, j - 1, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j - 1, k];
+                                    w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
+                                    w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
+                                   
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i - 1, j, k];
+                                    v[i, j, k] = v[i - 1, j, k];
+                                    v[i, j - 1, k] = v[i - 1, j - 1, k];
+                                    w[i, j, k] = w[i - 1, j, k];
+                                    w[i, j, k - 1] = w[i - 1, j, k - 1];
+                                }
                             }
 
-                            if (omega.boundary_normal_x[i, j, k] == 1) //boundary is to the +x side of cell
+                            if (omega.boundary_normal_x[i, j, k] == 1) //boundary is to the +x side of cell                           
                             {
-                                u[i, j, k] = omega.boundary_u[i + 1, j, k];
-                                v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j, k];
-                                v[i + 1, j - 1, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j - 1, k];
-                                w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
-                                w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
                                 p[i + 1, j, k] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i, j, k] = omega.boundary_u[i + 1, j, k];
+                                    v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j, k];
+                                    v[i + 1, j - 1, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j - 1, k];
+                                    w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
+                                    w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i - 1, j, k];
+                                    v[i, j, k] = v[i + 1, j, k];
+                                    v[i, j - 1, k] = v[i + 1, j - 1, k];
+                                    w[i, j, k] = w[i + 1, j, k];
+                                    w[i, j, k - 1] = w[i + 1, j, k - 1];
+                                }                                
                             }
 
                             if (omega.boundary_normal_y[i, j, k] == -1)//boundary is on the -y side of cell
                             {
-                                u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - u[i, j, k];
-                                u[i - 1, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - u[i - 1, j, k];
-                                v[i, j - 1, k] = omega.boundary_v[i, j - 1, k];
-                                w[i, j - 1, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
-                                w[i, j - 1, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
                                 p[i, j - 1, k] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - u[i, j, k];
+                                    u[i - 1, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - u[i - 1, j, k];
+                                    v[i, j - 1, k] = omega.boundary_v[i, j - 1, k];
+                                    w[i, j - 1, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
+                                    w[i, j - 1, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i, j - 1, k];
+                                    u[i - 1, j, k] = u[i - 1, j - 1, k];
+                                    v[i, j, k] = v[i, j - 1, k];
+                                    w[i, j, k] = w[i, j - 1, k];
+                                    w[i, j, k - 1] = w[i, j - 1, k - 1];
+                                }                                
                             }
 
                             if (omega.boundary_normal_y[i, j, k] == 1)//boundary is on the +y side of cell
                             {
-                                u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i, j, k];
-                                u[i - 1, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i - 1, j, k];
-                                v[i, j, k] = omega.boundary_v[i, j + 1, k];
-                                w[i, j + 1, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
-                                w[i, j + 1, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
                                 p[i, j + 1, k] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i, j, k];
+                                    u[i - 1, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - u[i - 1, j, k];
+                                    v[i, j, k] = omega.boundary_v[i, j + 1, k];
+                                    w[i, j + 1, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
+                                    w[i, j + 1, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i, j + 1, k];
+                                    u[i - 1, j, k] = u[i - 1, j + 1, k];
+                                    v[i, j, k] = v[i, j - 1, k];
+                                    w[i, j, k] = w[i, j + 1, k];
+                                    w[i, j, k - 1] = w[i, j + 1, k - 1];
+                                }                            
                             }
 
                             if (omega.boundary_normal_z[i, j, k] == -1)//boundary is on the -z side of cell
                             {
-                                u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i, j, k];
-                                u[i - 1, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i - 1, j, k];
-                                v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j, k];
-                                v[i, j - 1, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j - 1, k];
-                                w[i, j, k - 1] = omega.boundary_w[i, j, k - 1];
                                 p[i, j, k - 1] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i, j, k];
+                                    u[i - 1, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - u[i - 1, j, k];
+                                    v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j, k];
+                                    v[i, j - 1, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - v[i, j - 1, k];
+                                    w[i, j, k - 1] = omega.boundary_w[i, j, k - 1];
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i, j, k - 1];
+                                    u[i - 1, j, k] = u[i - 1, j, k - 1];
+                                    v[i, j, k] = v[i, j, k - 1];
+                                    v[i, j - 1, k] = v[i, j - 1, k - 1];
+                                    w[i, j, k] = w[i, j, k - 1];
+                                }
+                                
                             }
 
                             if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the +z side of cell
                             {
-                                u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
-                                u[i - 1, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i - 1, j, k];
-                                v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j, k];
-                                v[i, j - 1, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j - 1, k];
-                                w[i, j, k] = omega.boundary_w[i, j, k + 1];
                                 p[i, j, k + 1] = p[i, j, k];
+
+                                if (omega.outflow_cells[i, j, k] == 0)
+                                {
+                                    u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i, j, k];
+                                    u[i - 1, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - u[i - 1, j, k];
+                                    v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j, k];
+                                    v[i, j - 1, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - v[i, j - 1, k];
+                                    w[i, j, k] = omega.boundary_w[i, j, k + 1];
+                                }
+                                else
+                                {
+                                    u[i, j, k] = u[i, j, k + 1];
+                                    u[i - 1, j, k + 1] = u[i - 1, j, k + 1];
+                                    v[i, j, k] = v[i, j, k + 1];
+                                    v[i, j - 1, k] = v[i, j - 1, k + 1];
+                                    w[i, j, k] = w[i, j, k - 1];
+                                }
                             }
                         }
                     }
@@ -379,7 +457,7 @@ namespace FastFluidSolver
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
 
-           advect(ref u, u_old, u_old, v_old, w_old, 2);
+            /*advect(ref u, u_old, u_old, v_old, w_old, 2);
             advect(ref v, v_old, u_old, v_old, w_old, 3);
             advect(ref w, w_old, u_old, v_old, w_old, 4);
 
@@ -387,7 +465,7 @@ namespace FastFluidSolver
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, w_old, 0, w.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);*/
         }
 
         /*****************************************************************************

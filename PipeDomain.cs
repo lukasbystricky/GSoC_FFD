@@ -16,8 +16,8 @@ namespace FastFluidSolver
             this.Nz = Nz;
 
             length_x = 2.5;
-            length_y = 0.41;
-            length_z = 0.41;
+            length_y = 0.4;
+            length_z = 0.4;
 
             /*length_x = 1;
             length_y = 1;
@@ -36,7 +36,9 @@ namespace FastFluidSolver
             boundary_v = new double[Nx, Ny, Nz];
             boundary_w = new double[Nx, Ny, Nz];
 
-             double U_inflow = 0.45;
+            outflow_cells = new int[Nx, Ny, Nz];
+
+            double U_inflow = 0.45;
 
             //C# default values for int or double arrays are 0, so we only need to set nonzero fields
 
@@ -50,14 +52,16 @@ namespace FastFluidSolver
                         boundary_cells[1, j, k] = 1;
                         boundary_cells[Nx - 2, j, k] = 1;
                         boundary_normal_x[1, j, k] = -1;
-                        boundary_normal_x[Nx - 2, j, k] = 1;                        
+                        boundary_normal_x[Nx - 2, j, k] = 1;
+
+                        outflow_cells[Nx - 2, j, k] = 1;
                     }
 
                     double y = j * hy - hy / 2;
                     double z = k * hz - hz / 2;
 
                     boundary_u[0, j, k] = 16 * U_inflow * (y * (y - length_y) * z * (z - length_z));
-                    boundary_u[Nx - 1, j, k] = 16 * U_inflow * (y * (y - length_y) * z * (z - length_z));
+                    //boundary_u[Nx - 1, j, k] = 16 * U_inflow * (y * (y - length_y) * z * (z - length_z));
 
                     obstacle_cells[0, j, k] = 1;
                     obstacle_cells[Nx - 1, j, k] = 1;

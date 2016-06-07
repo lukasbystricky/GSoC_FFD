@@ -18,6 +18,8 @@ namespace FastFluidSolver
         public int[, ,] boundary_normal_y { get; protected set; } //flag to indicate if boundary at cell is normal to y direction
         public int[, ,] boundary_normal_z { get; protected set; } //flag to indicate if boundary at cell is normal to z direction
 
+        public int[, ,] outflow_cells { get; protected set; }
+
         public double[, ,] boundary_u { get; protected set; }   //x component of velocity at boundary
         public double[, ,] boundary_v { get; protected set; }   //y component of velocity at boundary
         public double[, ,] boundary_w { get; protected set; }   //z component of velocity at boundary
