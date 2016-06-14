@@ -35,6 +35,7 @@ namespace FastFluidSolver
     public class FluidSolver
     {
         const int MAX_ITER = 50; //maximum number of iterations for Gauss-Seidel solver
+        const int MIN_ITER = 20; //minimum number of iterations
         const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
 
         public double[, ,] u; // x component of velocity
@@ -45,7 +46,6 @@ namespace FastFluidSolver
         private double[, ,] u_old; //scratch arrays for velocities
         private double[, ,] v_old;
         private double[, ,] w_old;
-        private double[, ,] p_old;
 
         private double dt;  //time step
         public int Nx { get; private set; } //number of points in each x coordinate direction
@@ -83,16 +83,23 @@ namespace FastFluidSolver
             this.omega = omega;
             this.verbose = verbose;
 
-            u = u0;
+            /*u = u0;
             v = v0;
-            w = w0;
+            w = w0;*/
 
             p = new double[Nx, Ny, Nz];
+
+            u = new double[u0.GetLength(0), u0.GetLength(1), u0.GetLength(2)];
+            v = new double[v0.GetLength(0), v0.GetLength(1), v0.GetLength(2)];
+            w = new double[w0.GetLength(0), w0.GetLength(1), w0.GetLength(2)];
 
             u_old = new double[u.GetLength(0), u.GetLength(1), u.GetLength(2)];
             v_old = new double[v.GetLength(0), v.GetLength(1), v.GetLength(2)];
             w_old = new double[w.GetLength(0), w.GetLength(1), w.GetLength(2)];
-            p_old = new double[Nx, Ny, Nz];
+
+            Array.Copy(u0, 0, u, 0, u0.Length);
+            Array.Copy(v0, 0, v, 0, v0.Length);
+            Array.Copy(w0, 0, w, 0, w0.Length);
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
@@ -123,7 +130,6 @@ namespace FastFluidSolver
             u_old = old.u_old;
             v_old = old.v_old;
             w_old = old.w_old;
-            p_old = old.p_old;
 
             verbose = old.verbose;
         }
@@ -151,14 +157,14 @@ namespace FastFluidSolver
         }
 
         /*****************************************************************************
-         * Projection step. Solves Poisson equation L(p) = div(u_old) using second order finte
+         * Projection step. Solves Poisson equation L(p) = div(u_old) using finte
          * difference and updates the velocities, u = u_old - grad(p)
          ****************************************************************************/
         void project()
         {
             double[, ,] div = new double[Nx - 1, Ny - 1, Nz - 1];
 
-            // calculate div(w) using second order finite differences
+            // calculate div(w) using finite differences
             for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
@@ -184,9 +190,12 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, div, p_old, ref p);
+            double[, ,] p0 = new double[Nx, Ny, Nz]; //initial guess for pressure
+            Array.Clear(p, 0, p.Length);
 
-            //update velocity by adding calculate grad(p), calculated using second order finite difference
+            gs_solve(a, c, div, p0, ref p);
+
+            //update velocity by subtracting calculate grad(p)
             for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
@@ -195,12 +204,9 @@ namespace FastFluidSolver
                     {
                         if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            //if (omega.boundary_cells[i, j ,k] == 0)
-                            {
-                                u[i, j, k] -= (p[i + 1, j, k] - p[i, j, k]) / hx;
-                                v[i, j, k] -= (p[i, j + 1, k] - p[i, j, k]) / hy;
-                                w[i, j, k] -= (p[i, j, k + 1] - p[i, j, k]) / hz;
-                            }
+                            u[i, j, k] -= (p[i + 1, j, k] - p[i, j, k]) / hx;
+                            v[i, j, k] -= (p[i, j + 1, k] - p[i, j, k]) / hy;
+                            w[i, j, k] -= (p[i, j, k + 1] - p[i, j, k]) / hz;
                         }
                     }
                 }
@@ -304,7 +310,7 @@ namespace FastFluidSolver
                         {
                             if (omega.boundary_normal_x[i, j, k] == -1)//boundary is on the -x side of cell
                             { 
-                                p[i - 1, j, k] = p[i, j, k];
+                                p[i - 1, j, k] =  p[i, j, k];
 
                                 if (omega.outflow_cells[i, j, k] == 0)
                                 {
@@ -313,7 +319,58 @@ namespace FastFluidSolver
                                     v[i - 1, j - 1, k] = 2 * omega.boundary_v[i - 1, j, k] - v[i, j - 1, k];
                                     w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
                                     w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
-                                   
+
+                                    //-x and +- z
+                                    if (omega.boundary_normal_z[i, j, k] == 1)
+                                    {
+                                        v[i - 1, j, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] - v[i, j, k] - v[i - 1, j, k] - v[i, j, k + 1];
+                                        v[i - 1, j - 1, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] - v[i, j - 1, k] - v[i - 1, j - 1, k] - v[i, j - 1, k + 1];
+
+                                        p[i - 1, j, k + 1] = p[i, j, k];
+
+                                        //-x, +z and +- y
+                                        if (omega.boundary_normal_y[i, j, k] == 1)
+                                        {
+                                            p[i - 1, j + 1, k + 1] = p[i, j, k];
+                                        }
+                                        else if (omega.boundary_normal_y[i, j, k] == -1)
+                                        {
+                                            p[i - 1, j - 1, k + 1] = p[i, j, k];
+                                        }
+                                    }
+                                    else if (omega.boundary_normal_z[i, j, k] == -1)
+                                    {
+                                        v[i - 1, j, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] - v[i, j, k] - v[i - 1, j, k] - v[i, j, k + 1];
+                                        v[i - 1, j - 1, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] - v[i, j - 1, k] - v[i - 1, j - 1, k] - v[i, j - 1, k + 1];
+
+                                        p[i - 1, j, k - 1] = p[i, j, k];
+
+                                        //-x, -z and +-y
+                                        if (omega.boundary_normal_y[i, j, k] == 1)
+                                        {
+                                            p[i - 1, j + 1, k - 1] = p[i, j, k];
+                                        }
+                                        else if (omega.boundary_normal_y[i, j, k] == -1)
+                                        {
+                                            p[i - 1, j - 1, k - 1] = p[i, j, k];
+                                        }
+                                    }
+
+                                    //-x and +- y
+                                    if (omega.boundary_normal_y[i, j, k] == 1)
+                                    {
+                                        w[i - 1, j + 1, k] = 4 * omega.boundary_w[i - 1, j + 1, k] - w[i, j, k] - w[i - 1, j, k] - w[i, j + 1, k];
+                                        w[i - 1, j + 1, k - 1] = 4 * omega.boundary_w[i - 1, j + 1, k] - w[i, j, k - 1] - w[i - 1, j, k - 1] - w[i, j + 1, k - 1];
+
+                                        p[i - 1, j + 1, k] = p[i, j, k];
+                                    }
+                                    else if (omega.boundary_normal_y[i, j, k] == -1)
+                                    {
+                                        w[i - 1, j - 1, k] = 4 * omega.boundary_w[i - 1, j - 1, k] - w[i, j, k] - w[i - 1, j, k] - w[i, j - 1, k];
+                                        w[i - 1, j - 1, k - 1] = 4 * omega.boundary_w[i - 1, j - 1, k] - w[i, j, k - 1] - w[i - 1, j, k - 1] - w[i, j - 1, k - 1];
+
+                                        p[i - 1, j - 1, k] = p[i, j, k];
+                                    }
                                 }
                                 else
                                 {
@@ -336,6 +393,58 @@ namespace FastFluidSolver
                                     v[i + 1, j - 1, k] = 2 * omega.boundary_v[i + 1, j, k] - v[i, j - 1, k];
                                     w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
                                     w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
+
+                                    //+x and +- z
+                                    if (omega.boundary_normal_z[i, j, k] == 1)
+                                    {
+                                        v[i + 1, j, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] - v[i, j, k] - v[i + 1, j, k] - v[i, j, k + 1];
+                                        v[i + 1, j - 1, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] - v[i, j - 1, k] - v[i + 1, j - 1, k] - v[i, j - 1, k + 1];
+
+                                        p[i + 1, j, k + 1] = p[i, j, k];
+
+                                        //+x, +z and +- y
+                                        if (omega.boundary_normal_y[i, j, k] == 1)
+                                        {
+                                            p[i + 1, j + 1, k + 1] = p[i, j, k];
+                                        }
+                                        else if (omega.boundary_normal_y[i, j, k] == -1)
+                                        {
+                                            p[i + 1, j - 1, k + 1] = p[i, j, k];
+                                        }
+                                    }
+                                    else if (omega.boundary_normal_z[i, j, k] == -1)
+                                    {
+                                        v[i + 1, j, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] - v[i, j, k] - v[i + 1, j, k] - v[i, j, k + 1];
+                                        v[i + 1, j - 1, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] - v[i, j - 1, k] - v[i + 1, j - 1, k] - v[i, j - 1, k + 1];
+
+                                        p[i + 1, j, k - 1] = p[i, j, k];
+
+                                        //+x, -z and +- y
+                                        if (omega.boundary_normal_y[i, j, k] == 1)
+                                        {
+                                            p[i + 1, j + 1, k - 1] = p[i, j, k];
+                                        }
+                                        else if (omega.boundary_normal_y[i, j, k] == -1)
+                                        {
+                                            p[i + 1, j - 1, k - 1] = p[i, j, k];
+                                        }
+                                    }
+
+                                    //+x and +- y
+                                    if (omega.boundary_normal_y[i, j, k] == 1)
+                                    {
+                                        w[i + 1, j + 1, k] = 4 * omega.boundary_w[i + 1, j + 1, k] - w[i, j, k] - w[i + 1, j, k] - w[i, j + 1, k];
+                                        w[i + 1, j + 1, k - 1] = 4 * omega.boundary_w[i + 1, j + 1, k] - w[i, j, k - 1] - w[i + 1, j, k - 1] - w[i, j + 1, k - 1];
+
+                                        p[i + 1, j + 1, k] = p[i, j, k];
+                                    }
+                                    else if (omega.boundary_normal_y[i, j, k] == -1)
+                                    {
+                                        w[i + 1, j - 1, k] = 4 * omega.boundary_w[i + 1, j - 1, k] - w[i, j, k] - w[i + 1, j, k] - w[i, j - 1, k];
+                                        w[i + 1, j - 1, k - 1] = 4 * omega.boundary_w[i + 1, j - 1, k] - w[i, j, k - 1] - w[i + 1, j, k - 1] - w[i, j - 1, k - 1];
+
+                                        p[i + 1, j - 1, k] = p[i, j, k];
+                                    }
                                 }
                                 else
                                 {
@@ -358,6 +467,22 @@ namespace FastFluidSolver
                                     v[i, j - 1, k] = omega.boundary_v[i, j - 1, k];
                                     w[i, j - 1, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
                                     w[i, j - 1, k - 1] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k - 1];
+
+                                    //-y and +- z
+                                    if (omega.boundary_normal_z[i, j, k] == 1)
+                                    {
+                                        u[i, j - 1, k + 1] = 4 * omega.boundary_u[i, j - 1, k + 1] - u[i, j, k] - u[i, j - 1, k] - u[i, j, k + 1];
+                                        u[i - 1, j - 1, k + 1] = 4 * omega.boundary_u[i, j - 1, k + 1] - u[i - 1, j, k] - u[i - 1, j - 1, k] - u[i - 1, j, k + 1];
+
+                                        p[i, j - 1, k + 1] = p[i, j, k];
+                                    }
+                                    else if (omega.boundary_normal_z[i, j, k] == -1)
+                                    {
+                                        u[i, j - 1, k - 1] = 4 * omega.boundary_u[i, j - 1, k - 1] - u[i, j, k] - u[i, j - 1, k] - u[i, j, k - 1];
+                                        u[i - 1, j - 1, k - 1] = 4 * omega.boundary_u[i, j - 1, k - 1] - u[i - 1, j, k] - u[i - 1, j - 1, k] - u[i - 1, j, k - 1];
+
+                                        p[i, j - 1, k - 1] = p[i, j, k];
+                                    }
                                 }
                                 else
                                 {
@@ -380,6 +505,22 @@ namespace FastFluidSolver
                                     v[i, j, k] = omega.boundary_v[i, j + 1, k];
                                     w[i, j + 1, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
                                     w[i, j + 1, k - 1] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k - 1];
+
+                                    //+y and +- z
+                                    if (omega.boundary_normal_z[i, j, k] == 1)
+                                    {
+                                        u[i, j + 1, k + 1] = 4 * omega.boundary_u[i, j + 1, k + 1] - u[i, j, k] - u[i, j + 1, k] - u[i, j, k + 1];
+                                        u[i - 1, j + 1, k + 1] = 4 * omega.boundary_u[i, j + 1, k + 1] - u[i - 1, j, k] - u[i - 1, j + 1, k] - u[i -1, j, k + 1];
+
+                                        p[i, j + 1, k + 1] = p[i, j, k];
+                                    }
+                                    else if (omega.boundary_normal_z[i, j, k] == -1)
+                                    {
+                                        u[i, j + 1, k - 1] = 4 * omega.boundary_u[i, j + 1, k - 1] - u[i, j, k] - u[i, j + 1, k] - u[i, j, k - 1];
+                                        u[i - 1, j + 1, k - 1] = 4 * omega.boundary_u[i, j + 1, k - 1] - u[i - 1, j, k] - u[i - 1, j + 1, k] - u[i - 1, j, k - 1];
+
+                                        p[i, j + 1, k - 1] = p[i, j, k];
+                                    }
                                 }
                                 else
                                 {
@@ -388,7 +529,7 @@ namespace FastFluidSolver
                                     v[i, j, k] = v[i, j - 1, k];
                                     w[i, j, k] = w[i, j + 1, k];
                                     w[i, j, k - 1] = w[i, j + 1, k - 1];
-                                }                            
+                                }  
                             }
 
                             if (omega.boundary_normal_z[i, j, k] == -1)//boundary is on the -z side of cell
@@ -410,8 +551,7 @@ namespace FastFluidSolver
                                     v[i, j, k] = v[i, j, k - 1];
                                     v[i, j - 1, k] = v[i, j - 1, k - 1];
                                     w[i, j, k] = w[i, j, k - 1];
-                                }
-                                
+                                }                                
                             }
 
                             if (omega.boundary_normal_z[i, j, k] == 1)//boundary is on the +z side of cell
@@ -487,21 +627,20 @@ namespace FastFluidSolver
             int Sy = x0.GetLength(1);
             int Sz = x0.GetLength(2);
 
-            x1 = new double[Sx, Sy, Sz];
+            //x1 = new double[Sx, Sy, Sz];
 
             int iter = 0;
             double res = 2 * TOL;
 
             apply_boundary_conditions();
 
-            while (iter < MAX_ITER && res > TOL)
+            while (iter < MIN_ITER || (iter < MAX_ITER && res > TOL))
             {
-
-                for (int i = 1; i < Sx - 1; i++)
+                for (int k = 1; k < Sz - 1; k++)
                 {
                     for (int j = 1; j < Sy - 1; j++)
                     {
-                        for (int k = 1; k < Sz - 1; k++)
+                        for (int i = 1; i < Sx - 1; i++)
                         {
                             if (omega.obstacle_cells[i, j, k] == 0) //if cell not an obstacle
                             {
