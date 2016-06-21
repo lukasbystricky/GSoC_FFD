@@ -8,125 +8,33 @@ namespace FastFluidSolver
 {    
     public static class Utilities
     {
-        const double EPS = 1e-6;
+        const double EPS = 1e-8;
 
         /*****************************************************************************
          * Performs a trilinear interpolation 
+         * 
+         * Method based on code in "Fluid Flow for the Rest of Us: Tutorial of the
+         * Marker and Cell Method in Computer Graphics" by Cline, Cardon and Egbert
         ****************************************************************************/
-        public static double trilinear_interpolation(double[] coordinate, double[, ,] array, int grid_type, Domain omega)
+        public static double trilinear_interpolation(double x, double y, double z, 
+                    double[, ,] array)
         {
-            double hx = omega.hx;
-            double hy = omega.hy;
-            double hz = omega.hz;
+            int imin = Math.Max(Math.Min((int)Math.Floor(x - EPS), array.GetLength(0) - 1), 0);
+            int jmin = Math.Max(Math.Min((int)Math.Floor(y - EPS), array.GetLength(1) - 1), 0);
+            int kmin = Math.Max(Math.Min((int)Math.Floor(z - EPS), array.GetLength(2) - 1), 0);
 
-            int Nx = array.GetLength(0);
-            int Ny = array.GetLength(1);
-            int Nz = array.GetLength(2);
+            int imax = Math.Max(Math.Min(imin + 1, array.GetLength(0) - 1), 0);
+            int jmax = Math.Max(Math.Min(jmin + 1, array.GetLength(1) - 1), 0);
+            int kmax = Math.Max(Math.Min(kmin + 1, array.GetLength(2) - 1), 0);
 
-            //check if point inside obstacle
-            if (!in_domain(coordinate, omega))
-            {
-                return 0;
-            }
-
-            //Find grid cell that contains point
-            int imin, jmin, kmin, imax, jmax, kmax;
-            imin = imax = jmin = jmax = kmin = kmax = 0;
-
-            double x, y, z;
-            x = y = z = 0;
-
-            switch (grid_type)
-            {
-                case 1://cell centred grid
-
-                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
-                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
-                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz + 0.5;
-
-                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
-                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
-                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);                    
-
-                    break;
-
-                case 2: //u velocity
-
-                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx;
-                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
-                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz + 0.5;
-
-                    imin = (int)Math.Floor(coordinate[0] / hx);
-                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
-                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);
-
-                    break;
-
-                case 3: //v velocity
-
-                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
-                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz;
-                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz + 0.5;
-
-                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
-                    jmin = (int)Math.Floor(coordinate[1] / hy);
-                    kmin = (int)Math.Floor(coordinate[2] / hz) + ((z > 0.5) ? 1 : 0);
-
-                    break;
-
-                case 4://w velocity
-
-                    x = coordinate[0] - Math.Floor(coordinate[0] / hx) * hx + 0.5;
-                    y = coordinate[1] - Math.Floor(coordinate[1] / hy) * hz + 0.5;
-                    z = coordinate[2] - Math.Floor(coordinate[2] / hz) * hz;
-
-                    imin = (int)Math.Floor(coordinate[0] / hx) + ((x > 0.5) ? 1 : 0);
-                    jmin = (int)Math.Floor(coordinate[1] / hy) + ((y > 0.5) ? 1 : 0);
-                    kmin = (int)Math.Floor(coordinate[2] / hz);
-
-                    break;
-            }
-
-            imax = Math.Min(imin + 1, Nx - 1);
-            jmax = Math.Min(jmin + 1, Ny - 1);
-            kmax = Math.Min(kmin + 1, Nz - 1);
-
-            double[] corner_values = new double[8];            
-
-            corner_values[0] = array[imin, jmin, kmin];
-            corner_values[1] = array[imax, jmin, kmin];
-            corner_values[2] = array[imin, jmin, kmax];
-            corner_values[3] = array[imax, jmin, kmax];
-            corner_values[4] = array[imin, jmax, kmin];
-            corner_values[5] = array[imax, jmax, kmin];
-            corner_values[6] = array[imin, jmax, kmax];
-            corner_values[7] = array[imax, jmax, kmax];
-
-            double c00 = corner_values[0] * (1 - x) + corner_values[1] * x;
-            double c01 = corner_values[2] * (1 - x) + corner_values[3] * x;
-            double c10 = corner_values[4] * (1 - x) + corner_values[5] * x;
-            double c11 = corner_values[6] * (1 - x) + corner_values[7] * x;
-
-            double c0 = c00 * (1 - y) + c10 * y;
-            double c1 = c01 * (1 - y) + c11 * y;
-
-            return c0 * (1 - z) + c1 * z;
-
-           /* corner_values[0] = array[imin, jmin, kmin];
-            corner_values[1] = array[imax, jmin, kmin];
-            corner_values[2] = array[imin, jmax, kmin];
-            corner_values[3] = array[imin, jmin, kmax];
-            corner_values[4] = array[imax, jmin, kmax];
-            corner_values[5] = array[imin, jmax, kmax];
-            corner_values[6] = array[imax, jmax, kmin];
-            corner_values[7] = array[imax, jmax, kmax];
-
-            double v = corner_values[0] * (1 - x) * (1 - y) * (1 - z) + corner_values[1] * x * (1 - y) * (1 - z) +
-                    corner_values[2] * (1 - x) * y * (1 - z) + corner_values[3] * (1 - x) * (1 - y) * z +
-                    corner_values[4] * x * (1 - y) * z + corner_values[5] * (1 - x) * y * z +
-                    corner_values[6] * x * y * (1 - z) + corner_values[7] * x * y * z;
-
-            return v;*/
+            return (imax - x) * (jmax - y) * (kmax - z) * array[imin, jmin, kmin] +
+                    (x - imin) * (jmax - y) * (kmax - z) * array[imax, jmin, kmin] +
+                    (imax - x) * (y - jmin) * (kmax - z) * array[imin, jmax, kmin] +
+                    (x - imin) * (y - jmin) * (kmax - z) * array[imax, jmax, kmin] +
+                    (imax - x) * (jmax - y) * (z - kmin) * array[imin, jmin, kmax] +
+                    (x - imin) * (jmax - y) * (z - kmin) * array[imax, jmin, kmax] +
+                    (imax - x) * (y - jmin) * (z - kmin) * array[imin, jmax, kmax] +
+                    (x - imin) * (y - jmin) * (z - kmin) * array[imax, jmax, kmax];
         }
 
         /**************************************************************************
