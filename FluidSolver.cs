@@ -83,10 +83,6 @@ namespace FastFluidSolver
             this.omega = omega;
             this.verbose = verbose;
 
-            /*u = u0;
-            v = v0;
-            w = w0;*/
-
             p = new double[Nx, Ny, Nz];
 
             u = new double[u0.GetLength(0), u0.GetLength(1), u0.GetLength(2)];
@@ -154,6 +150,8 @@ namespace FastFluidSolver
             c[5] = c[0];
 
             gs_solve(a, c, b, x_old, ref x_new);
+
+            //apply_boundary_conditions();
         }
 
         /*****************************************************************************
@@ -191,7 +189,7 @@ namespace FastFluidSolver
             c[5] = c[0];
 
             double[, ,] p0 = new double[Nx, Ny, Nz]; //initial guess for pressure
-            Array.Clear(p, 0, p.Length);
+            Array.Copy(p, p0, p.Length);
 
             gs_solve(a, c, div, p0, ref p);
 
@@ -230,7 +228,7 @@ namespace FastFluidSolver
          *         
          * TO DO: implement in parallel
          **************************************************************************/
-       /* void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
+        void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
         {
             int Sx = x.GetLength(0);
             int Sy = x.GetLength(1);
@@ -243,55 +241,49 @@ namespace FastFluidSolver
                     for (int k = 0; k < Sz; k++)
                     {
                         //find coordinate of point
-                        double[] coordinate = new double[3];
+                        double xRel, yRel, zRel, uTmp, vTmp, wTmp;
 
+                        xRel = yRel = zRel = uTmp = vTmp = wTmp = 0;
                         switch (grid_type)
                         {
-                            case 1: //cell centred grid
-                                coordinate[0] = (i - 0.5) * hx;
-                                coordinate[1] = (j - 0.5) * hy;
-                                coordinate[2] = (k - 0.5) * hz;
+                            case 1:
+                                uTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k + 0.5, velx);
+                                vTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k + 0.5, vely);
+                                wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
+
                                 break;
 
-                            case 2: //x velocity
-                                coordinate[0] = i * hx;
-                                coordinate[1] = (j - 0.5) * hy;
-                                coordinate[2] = (k - 0.5) * hz;
+                            case 2:
+                                uTmp = velx[i, j, k];
+                                vTmp = Utilities.trilinear_interpolation(i + 0.5, j - 0.5, k + 0.5, vely);
+                                wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
+
                                 break;
 
-                            case 3: //y velocity
-                                coordinate[0] = (i - 0.5) * hx;
-                                coordinate[1] = j * hy;
-                                coordinate[2] = (k - 0.5) * hz;
+                            case 3:
+                                uTmp = Utilities.trilinear_interpolation(i - 0.5, j + 0.5, k + 0.5, velx);
+                                vTmp = vely[i, j, k];
+                                wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
+
                                 break;
 
-                            case 4: //z velocity
-                                coordinate[0] = (i - 0.5) * hx;
-                                coordinate[1] = (j - 0.5) * hy;
-                                coordinate[2] = k * hz;
+                            case 4:
+                                uTmp = Utilities.trilinear_interpolation(i - 0.5, j + 0.5, k + 0.5, velx);
+                                vTmp = Utilities.trilinear_interpolation(i + 0.5, j - 0.5, k + 0.5, vely);
+                                wTmp = velz[i, j, k];
+
                                 break;
                         }
-                       
-                        double utmp = Utilities.trilinear_interpolation(coordinate, velx, 2, omega);
-                        double vtmp = Utilities.trilinear_interpolation(coordinate, vely, 3, omega);
-                        double wtmp = Utilities.trilinear_interpolation(coordinate, velz, 4, omega);
 
-                        //back step by dt
-                        coordinate[0] -= dt * utmp;
-                        coordinate[1] -= dt * vtmp;
-                        coordinate[2] -= dt * wtmp;
-
-                        coordinate[0] = Math.Round(coordinate[0], 5);
-                        coordinate[1] = Math.Round(coordinate[1], 5);
-                        coordinate[2] = Math.Round(coordinate[2], 5);
-
-                        x[i, j, k] = Utilities.trilinear_interpolation(coordinate, x0, grid_type, omega);                        
+                        x[i, j, k] = Utilities.trilinear_interpolation(i - dt * uTmp / hx, 
+                                                    j - dt * vTmp / hy, k - dt * wTmp / hz, x0);
+                  
                     }
                 }
             }
 
             apply_boundary_conditions();
-        }*/
+        }
 
         /*********************************************************************************
          * Applies the Dirichlet boundary conditions from the domain omega to the velocities
@@ -382,16 +374,16 @@ namespace FastFluidSolver
                             {
                                 p[i - 1, j - 1, k] = p[i, j, k];
 
-                                u[i - 1, j - 1, k] = omega.boundary_u[i - 1, j - 1, k];
+                                u[i - 1, j - 1, k] = 2 * omega.boundary_u[i - 1, j - 1, k] - omega.boundary_u[i - 1, j, k];
                                 v[i - 1, j - 1, k] = omega.boundary_v[i - 1, j - 1, k];
-                                w[i - 1, j - 1, k] = 4 * omega.boundary_w[i - 1, j - 1, k] - w[i, j, k] - w[i, j - 1, k] - w[i - 1, j, k];
+                                w[i - 1, j - 1, k] = 4 * omega.boundary_w[i - 1, j - 1, k] - w[i, j, k] -  w[i, j - 1, k] - w[i - 1, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1)
                             {
                                 p[i - 1, j + 1, k] = p[i, j, k];
 
-                                u[i - 1, j + 1, k] = omega.boundary_u[i - 1, j + 1, k];
+                                u[i - 1, j + 1, k] = 2 * omega.boundary_u[i - 1, j + 1, k] - u[i - 1, j, k];
                                 w[i - 1, j + 1, k] = 4 * omega.boundary_w[i - 1, j + 1, k] - w[i - 1, j, k] - w[i, j, k] - w[i, j + 1, k];
                             }
 
@@ -399,7 +391,7 @@ namespace FastFluidSolver
                             {
                                 p[i - 1, j, k - 1] = p[i, j, k];
 
-                                u[i - 1, j, k - 1] = omega.boundary_u[i - 1, j, k - 1];
+                                u[i - 1, j, k - 1] = 2 * omega.boundary_u[i - 1, j, k - 1] - u[i - 1, j, k];
                                 w[i - 1, j, k - 1] = omega.boundary_w[i - 1, j, k - 1];
                                 v[i - 1, j, k - 1] = 4 * omega.boundary_v[i - 1, j, k - 1] - v[i - 1, j, k] - v[i, j, k] - v[i, j, k - 1];
                             }
@@ -408,8 +400,9 @@ namespace FastFluidSolver
                             {
                                 p[i - 1, j, k + 1] = p[i, j, k];
 
-                                u[i - 1, j, k + 1] = omega.boundary_u[i - 1, j, k + 1];
+                                u[i - 1, j, k + 1] = 2 * omega.boundary_u[i - 1, j, k + 1] - omega.boundary_u[i - 1, j, k];
                                 v[i - 1, j, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] - v[i - 1, j, k] - v[i, j, k] - v[i, j, k + 1];
+                                w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - w[i, j, k];
                             }
 
                             //+x face
@@ -417,6 +410,7 @@ namespace FastFluidSolver
                             {
                                 p[i + 1, j - 1, k] = p[i, j, k];
 
+                                u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - omega.boundary_u[i, j, k];
                                 v[i + 1, j - 1, k] = omega.boundary_v[i + 1, j - 1, k];
                                 w[i + 1, j - 1, k] = 4 * omega.boundary_w[i + 1, j - 1, k] - w[i + 1, j, k] - w[i, j, k] - w[i, j - 1, k];
                             }
@@ -425,6 +419,7 @@ namespace FastFluidSolver
                             {
                                 p[i + 1, j + 1, k] = p[i, j, k];
 
+                                u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - omega.boundary_u[i, j, k];
                                 w[i + 1, j + 1, k] = 4 * omega.boundary_w[i + 1, j + 1, k] - w[i + 1, j, k] - w[i, j, k] - w[i, j + 1, k];
                             }
 
@@ -440,7 +435,9 @@ namespace FastFluidSolver
                             {
                                 p[i + 1, j, k + 1] = p[i, j, k];
 
+                                u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - omega.boundary_u[i, j, k];
                                 v[i + 1, j, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] - v[i + 1, j, k] - v[i, j, k] - v[i, j, k + 1];
+                                w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - w[i, j, k];
                             }
 
                             //y,z faces
@@ -477,36 +474,68 @@ namespace FastFluidSolver
                             }
 
                             /*****************************************************************************
-                             * TO DO: Add 8 corners for velocities
+                             * 8 corners
                              *****************************************************************************/
 
                             if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
                             {
+                                u[i - 1, j - 1, k - 1] = 4 * omega.boundary_u[i - 1, j - 1, k - 1] - u[i - 1, j, k] - omega.boundary_u[i - 1, j - 1, k] -
+                                                                         omega.boundary_u[i - 1, j, k - 1] - omega.boundary_u[i - 1, j - 1, k - 1];
+
+                                v[i - 1, j - 1, k - 1] = 4 * omega.boundary_v[i - 1, j - 1, k - 1] - v[i, j - 1, k] - omega.boundary_v[i - 1, j - 1, k] -
+                                                                         omega.boundary_v[i, j - 1, k - 1] - omega.boundary_v[i - 1, j - 1, k - 1];
+
+                                w[i - 1, j - 1, k - 1] = 4 * omega.boundary_w[i - 1, j - 1, k - 1] - w[i, j, k - 1] - omega.boundary_w[i - 1, j, k - 1] -
+                                                                         omega.boundary_w[i, j - 1, k - 1] - omega.boundary_w[i - 1, j - 1, k - 1];
+
                                 p[i - 1, j - 1, k - 1] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
                             {
+                                u[i - 1, j + 1, k - 1] = 4 * omega.boundary_u[i - 1, j + 1, k - 1] - u[i - 1, j, k] - omega.boundary_u[i - 1, j + 1, k] -
+                                                                         omega.boundary_u[i - 1, j, k - 1] - omega.boundary_u[i - 1, j + 1, k - 1];
+
+                                w[i - 1, j + 1, k - 1] = 4 * omega.boundary_w[i - 1, j + 1, k - 1] - w[i, j, k - 1] - omega.boundary_w[i - 1, j, k - 1] -
+                                                                         omega.boundary_w[i, j + 1, k - 1] - omega.boundary_w[i - 1, j + 1, k - 1];
+
                                 p[i - 1, j + 1, k - 1] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == 1)
                             {
+                                u[i - 1, j + 1, k + 1] = 4 * omega.boundary_u[i - 1, j + 1, k + 1] - u[i - 1, j, k] - omega.boundary_u[i - 1, j + 1, k] -
+                                                                        omega.boundary_u[i - 1, j, k + 1] - omega.boundary_u[i - 1, j + 1, k + 1];
                                 p[i - 1, j + 1, k + 1] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
                             {
+                                u[i - 1, j - 1, k + 1] = 4 * omega.boundary_u[i - 1, j - 1, k + 1] - u[i - 1, j, k] - omega.boundary_u[i - 1, j - 1, k] -
+                                                                        omega.boundary_u[i - 1, j, k + 1] - omega.boundary_u[i - 1, j - 1, k + 1];
+
+                                v[i - 1, j - 1, k + 1] = 4 * omega.boundary_v[i - 1, j - 1, k + 1] - v[i, j - 1, k] - omega.boundary_v[i - 1, j - 1, k] -
+                                                                        omega.boundary_v[i, j - 1, k + 1] - omega.boundary_v[i - 1, j - 1, k + 1];
+
                                 p[i - 1, j  - 1, k + 1] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
                             {
+                                v[i + 1, j - 1, k - 1] = 4 * omega.boundary_v[i + 1, j - 1, k - 1] - v[i, j - 1, k] - omega.boundary_v[i + 1, j - 1, k] -
+                                                                         omega.boundary_v[i, j - 1, k - 1] - omega.boundary_v[i + 1, j - 1, k - 1];
+
+                                w[i + 1, j - 1, k - 1] = 4 * omega.boundary_w[i + 1, j - 1, k - 1] - w[i, j, k - 1] - omega.boundary_w[i + 1, j, k - 1] -
+                                                                         omega.boundary_w[i, j - 1, k - 1] - omega.boundary_w[i + 1, j - 1, k - 1];
+
                                 p[i + 1, j - 1, k - 1] = p[i, j, k];
                             }
 
                             if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
                             {
+                                w[i + 1, j + 1, k - 1] = 4 * omega.boundary_w[i + 1, j + 1, k - 1] - w[i, j, k - 1] - omega.boundary_w[i + 1, j, k - 1] -
+                                                                         omega.boundary_w[i, j + 1, k - 1] - omega.boundary_w[i + 1, j + 1, k - 1];
+
                                 p[i + 1, j + 1, k - 1] = p[i, j, k];
                             }
 
@@ -517,6 +546,9 @@ namespace FastFluidSolver
 
                             if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
                             {
+                                v[i + 1, j - 1, k + 1] = 4 * omega.boundary_v[i + 1, j - 1, k + 1] - v[i, j - 1, k] - omega.boundary_v[i + 1, j - 1, k] -
+                                                                         omega.boundary_v[i, j - 1, k + 1] - omega.boundary_v[i + 1, j - 1, k + 1];
+
                                 p[i + 1, j - 1, k + 1] = p[i, j, k];
                             }
                         }

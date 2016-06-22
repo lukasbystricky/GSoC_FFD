@@ -30,10 +30,11 @@ namespace FastFluidSolver
             boundary_normal_x = new int[Nx, Ny, Nz];
             boundary_normal_y = new int[Nx, Ny, Nz];
             boundary_normal_z = new int[Nx, Ny, Nz];
-            boundary_u = new double[Nx, Ny, Nz];
-            boundary_v = new double[Nx, Ny, Nz];
-            boundary_w = new double[Nx, Ny, Nz];
+            boundary_u = new double[Nx - 1, Ny, Nz];
+            boundary_v = new double[Nx, Ny - 1, Nz];
+            boundary_w = new double[Nx, Ny, Nz - 1];
 
+            outflow_cells = new int[Nx, Ny, Nz];
             //C# default values for int or double arrays are 0, so we only need to set nonzero fields
 
             //x = 0 and x = 1 boundaries
@@ -83,17 +84,117 @@ namespace FastFluidSolver
                     {
                         boundary_cells[i, j, 1] = 1;
                         boundary_cells[i, j, Nz - 2] = 1;
+
                         boundary_normal_z[i, j, 1] = -1;
                         boundary_normal_z[i, j, Nz - 2] = 1;
                     }
 
                     obstacle_cells[i, j, 0] = 1;
                     obstacle_cells[i, j, Nz - 1] = 1;
-
-                    boundary_u[i, j, Nz - 1] = 1;
                 }
             }
-        }
+
+            /**************************************************************************************
+                * u boundary conditions
+             *************************************************************************************/
+            for (int i = 0; i < boundary_u.GetLength(0); i++)
+            {
+                for (int j = 0; j < boundary_u.GetLength(1); j++)
+                {
+                    boundary_u[i, j, boundary_u.GetLength(2) - 1] = 1;
+
+                    //boundary_u[i, j, 0] = 1;
+                }
+            }
+
+            /*for (int i = 0; i < boundary_u.GetLength(0); i++)
+            {
+                for (int k = 0; k < boundary_u.GetLength(2); k++)
+                {
+                    boundary_u[i, boundary_u.GetLength(1) - 1, k] = 1;
+
+                    boundary_u[i, 0, k] = 1;
+                }
+            }
+
+            for (int j = 0; j < boundary_u.GetLength(1); j++)
+            {
+                for (int k = 0; k < boundary_u.GetLength(2); k++)
+                {
+                    boundary_u[boundary_u.GetLength(0) - 1, j, k] = 1;
+
+                    boundary_u[0, j, k] = 1;
+                }
+            }*/
+
+            /**************************************************************************************
+                * v boundary conditions
+             *************************************************************************************/
+            /*for (int i = 0; i < boundary_v.GetLength(0); i++)
+            {
+                for (int j = 0; j < boundary_v.GetLength(1); j++)
+                {
+                    boundary_v[i, j, boundary_v.GetLength(2) - 1] = 2;
+
+                    boundary_v[i, j, 0] = 2;
+                }
+            }
+
+            for (int i = 0; i < boundary_v.GetLength(0); i++)
+            {
+                for (int k = 0; k < boundary_v.GetLength(2); k++)
+                {
+                    boundary_v[i, boundary_v.GetLength(1) - 1, k] = 2;
+
+                    boundary_v[i, 0, k] = 2;
+                }
+            }
+
+            for (int j = 0; j < boundary_v.GetLength(1); j++)
+            {
+                for (int k = 0; k < boundary_v.GetLength(2); k++)
+                {
+                    boundary_v[boundary_v.GetLength(0) - 1, j, k] = 2;
+
+                    boundary_v[0, j, k] = 2;
+                }
+            }*/
+
+            /**************************************************************************************
+                * w boundary conditions
+             *************************************************************************************/
+           /*for (int i = 0; i < boundary_w.GetLength(0); i++)
+            {
+                for (int j = 0; j < boundary_w.GetLength(1); j++)
+                {
+                    boundary_w[i, j, boundary_w.GetLength(2) - 1] = 3;
+
+                    boundary_w[i, j, 0] = 3;
+                }
+            }
+
+            for (int i = 0; i < boundary_w.GetLength(0); i++)
+            {
+                for (int k = 0; k < boundary_w.GetLength(2); k++)
+                {
+                    boundary_w[i, boundary_w.GetLength(1) - 1, k] = 3;
+
+                    boundary_w[i, 0, k] = 3;
+                }
+            }
+
+            for (int j = 0; j < boundary_w.GetLength(1); j++)
+            {
+                for (int k = 0; k < boundary_w.GetLength(2); k++)
+                {
+                    boundary_w[boundary_w.GetLength(0) - 1, j, k] = 3;
+
+                    boundary_w[0, j, k] = 3;
+                }
+            }*/
+        } 
+
+       
 
         /***********************************************************************
          * Copy constructor
