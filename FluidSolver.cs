@@ -34,9 +34,15 @@ namespace FastFluidSolver
      ************************************************************************/
     public class FluidSolver
     {
-        const int MAX_ITER = 20; //maximum number of iterations for Gauss-Seidel solver
-        const int MIN_ITER = 1; //minimum number of iterations
-        const double TOL = 1e-5; //maximum relative error for Gauss-Seidel solver
+        public struct solver_struct
+        {
+            public int max_iter; //maximum number of iterations for Gauss-Seidel solver
+            public int min_iter; //minimum number of iterations
+            public double tol; //maximum relative error for Gauss-Seidel solver
+            public bool verbose;
+        }
+
+        private solver_struct solver_prams;
 
         public double[, ,] u; // x component of velocity
         public double[, ,] v;// y component of velocity
@@ -57,8 +63,6 @@ namespace FastFluidSolver
         private double hz;   //spacing in x coordinate direction
         private double nu;  //fluid viscosity
 
-        private bool verbose;
-
         Domain omega;
 
         void initialize() { }
@@ -67,7 +71,7 @@ namespace FastFluidSolver
         /****************************************************************************
          * Constructor
          ****************************************************************************/
-        public FluidSolver(Domain omega, double dt, double nu, double[, ,] u0, double[, ,] v0, double[, ,] w0, bool verbose)
+        public FluidSolver(Domain omega, double dt, double nu, double[, ,] u0, double[, ,] v0, double[, ,] w0, solver_struct solver_prams)
         {
             Nx = omega.Nx;
             Ny = omega.Ny;
@@ -81,7 +85,7 @@ namespace FastFluidSolver
             this.nu = nu;
 
             this.omega = omega;
-            this.verbose = verbose;
+            this.solver_prams = solver_prams;
 
             p = new double[Nx, Ny, Nz];
 
@@ -127,7 +131,7 @@ namespace FastFluidSolver
             v_old = old.v_old;
             w_old = old.w_old;
 
-            verbose = old.verbose;
+            solver_prams = old.solver_prams;
         }
 
         /****************************************************************************
@@ -150,8 +154,6 @@ namespace FastFluidSolver
             c[5] = c[0];
 
             gs_solve(a, c, b, x_old, ref x_new);
-
-            //apply_boundary_conditions();
         }
 
         /*****************************************************************************
@@ -680,7 +682,7 @@ namespace FastFluidSolver
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
 
-            advect(ref u, u_old, u_old, v_old, w_old, 2);
+            /*advect(ref u, u_old, u_old, v_old, w_old, 2);
             advect(ref v, v_old, u_old, v_old, w_old, 3);
             advect(ref w, w_old, u_old, v_old, w_old, 4);
 
@@ -688,7 +690,7 @@ namespace FastFluidSolver
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, w_old, 0, w.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);*/
         }
 
         /*****************************************************************************
@@ -713,11 +715,11 @@ namespace FastFluidSolver
             //x1 = new double[Sx, Sy, Sz];
 
             int iter = 0;
-            double res = 2 * TOL;
+            double res = 2 * solver_prams.tol;
 
             apply_boundary_conditions();
 
-            while (iter < MIN_ITER || (iter < MAX_ITER && res > TOL))
+            while (iter < solver_prams.min_iter || (iter < solver_prams.max_iter && res > solver_prams.tol))
             {
                 for (int k = 1; k < Sz - 1; k++)
                 {
@@ -742,7 +744,7 @@ namespace FastFluidSolver
                 Array.Copy(x1, 0, x0, 0, x1.Length);
             }
 
-            if (verbose)
+            if (solver_prams.verbose)
             {
                 Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", res, iter);
             }

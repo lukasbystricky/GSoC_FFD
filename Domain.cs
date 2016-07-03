@@ -106,25 +106,25 @@ namespace FastFluidSolver
                             if (obstacle_cells[i, j + 1, k] == 0)
                             {
                                 boundary_cells[i, j + 1, k] = 1;
-                                boundary_normal_x[i, j + 1, k] = -1;
+                                boundary_normal_y[i, j + 1, k] = -1;
                             }
 
                             if (obstacle_cells[i, j - 1, k] == 0)
                             {
                                 boundary_cells[i, j - 1, k] = 1;
-                                boundary_normal_x[i, j - 1, k] = 1;
+                                boundary_normal_y[i, j - 1, k] = 1;
                             }
 
                             if (obstacle_cells[i, j, k + 1] == 0)
                             {
                                 boundary_cells[i, j, k + 1] = 1;
-                                boundary_normal_x[i, j, k + 1] = -1;
+                                boundary_normal_z[i, j, k + 1] = -1;
                             }
 
                             if (obstacle_cells[i, j, k - 1] == 0)
                             {
                                 boundary_cells[i, j, k - 1] = 1;
-                                boundary_normal_x[i, j, k - 1] = 1;
+                                boundary_normal_z[i, j, k - 1] = 1;
                             }
                         }
                     }
