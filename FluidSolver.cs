@@ -38,6 +38,7 @@ namespace FastFluidSolver
         {
             public int max_iter; //maximum number of iterations for Gauss-Seidel solver
             public int min_iter; //minimum number of iterations
+            public int backtrace_order;
             public double tol; //maximum relative error for Gauss-Seidel solver
             public bool verbose;
         }
@@ -235,77 +236,89 @@ namespace FastFluidSolver
             int Sx = x.GetLength(0);
             int Sy = x.GetLength(1);
             int Sz = x.GetLength(2);
- 
+
+            DataExtractor de = new DataExtractor(omega, this);
+
             for (int i = 1; i < Sx - 1; i++)
             {
                 for (int j = 1; j < Sy - 1; j++)
                 {
                     for (int k = 1; k < Sz - 1; k++)
                     {
-
                         if (omega.obstacle_cells[i, j, k] == 0)
                         {
-                            //find coordinate of point
-                            double xRel, yRel, zRel, uTmp, vTmp, wTmp;
-                            int inew, jnew, knew;
 
-                            xRel = yRel = zRel = uTmp = vTmp = wTmp = 0;
-                            inew = jnew = knew = 0;
+                            double xCoord, yCoord, zCoord;
+                            double[] velocity0, velocity1;
+
+                            xCoord = yCoord = zCoord = 0;
 
                             switch (grid_type)
                             {
                                 case 1:
-                                    uTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k + 0.5, velx);
-                                    vTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k + 0.5, vely);
-                                    wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
-
-                                    inew = (int)Math.Min(Math.Max(Math.Floor(i - dt*uTmp/hx - 0.5), 0 ), Sx - 1);
-                                    jnew = (int)Math.Min(Math.Max(Math.Floor(j - dt*vTmp/hy - 0.5), 0 ), Sy - 1);
-                                    knew = (int)Math.Min(Math.Max(Math.Floor(k - dt*wTmp/hz - 0.5), 0 ), Sz - 1);
+                                    xCoord = (i - 0.5) * hx;
+                                    yCoord = (j - 0.5) * hy;
+                                    zCoord = (k - 0.5) * hz;
 
                                     break;
 
                                 case 2:
-                                    uTmp = velx[i, j, k];
-                                    vTmp = Utilities.trilinear_interpolation(i + 0.5, j - 0.5, k + 0.5, vely);
-                                    wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
-
-                                    inew = (int)Math.Min(Math.Max(Math.Floor(i - dt*uTmp/hx), 0), Sx - 2);
-                                    jnew = (int)Math.Min(Math.Max(Math.Floor(j - dt*vTmp/hy - 0.5), 0 ), Sy - 1);
-                                    knew = (int)Math.Min(Math.Max(Math.Floor(k - dt*wTmp/hz - 0.5), 0 ), Sz - 1);
+                                    xCoord = (i - 1) * hx;
+                                    yCoord = (j - 0.5) * hy;
+                                    zCoord = (k - 0.5) * hz;
 
                                     break;
 
                                 case 3:
-                                    uTmp = Utilities.trilinear_interpolation(i - 0.5, j + 0.5, k + 0.5, velx);
-                                    vTmp = vely[i, j, k];
-                                    wTmp = Utilities.trilinear_interpolation(i + 0.5, j + 0.5, k - 0.5, velz);
-
-                                    inew = (int)Math.Min(Math.Max(Math.Floor(i - dt*uTmp/hx - 0.5), 0), Sx - 1);
-                                    jnew = (int)Math.Min(Math.Max(Math.Floor(j - dt*vTmp/hy), 0 ), Sy - 2);
-                                    knew = (int)Math.Min(Math.Max(Math.Floor(k - dt*wTmp/hz - 0.5), 0 ), Sz - 1);
+                                    xCoord = (i - 0.5) * hx;
+                                    yCoord = (j - 1) * hy;
+                                    zCoord = (k - 0.5) * hz;
 
                                     break;
 
                                 case 4:
-                                    uTmp = Utilities.trilinear_interpolation(i - 0.5, j + 0.5, k + 0.5, velx);
-                                    vTmp = Utilities.trilinear_interpolation(i + 0.5, j - 0.5, k + 0.5, vely);
-
-                                    inew = (int)Math.Min(Math.Max(Math.Floor(i - dt*uTmp/hx - 0.5), 0), Sx - 1);
-                                    jnew = (int)Math.Min(Math.Max(Math.Floor(j - dt*vTmp/hy - 0.5), 0), Sy - 1);
-                                    knew = (int)Math.Min(Math.Max(Math.Floor(k - dt*wTmp/hz), 0), Sz - 2);
-                                    wTmp = velz[i, j, k];
+                                    xCoord = (i - 0.5) * hx;
+                                    yCoord = (j - 0.5) * hy;
+                                    zCoord = (k - 1) * hz;
 
                                     break;
                             }
 
-                            if (omega.obstacle_cells[inew, jnew, knew] == 0)
+                            velocity0 = de.get_velocity(xCoord, yCoord, zCoord);
+                            double[] coordNew = new double[3];
+
+                            switch (solver_prams.backtrace_order)
                             {
-                                x[i, j, k] = Utilities.trilinear_interpolation(i - dt * uTmp / hx,
-                                                            j - dt * vTmp / hy, k - dt * wTmp / hz, x0);
+                                case 1:
+
+                                    coordNew[0] = xCoord - dt * (velocity0[0]);
+                                    coordNew[1] = yCoord - dt * (velocity0[1]);
+                                    coordNew[2] = zCoord - dt * (velocity0[2]);
+
+                                    if (Utilities.in_domain(coordNew, omega))
+                                    {
+                                        x[i, j, k] = Utilities.trilinear_interpolation(i - (dt / hx) * velocity0[0],
+                                                    j - (dt / hy) * velocity0[1], k - (dt / hz) * velocity0[2], x0);
+                                    }
+
+                                    break;
+
+                                case 2:
+
+                                    velocity1 = de.get_velocity(xCoord - dt * velocity0[0], yCoord - dt * velocity0[1], zCoord - dt * velocity0[2]);
+
+                                    coordNew[0] = xCoord - (dt / 2) * (velocity0[0] - velocity1[0]);
+                                    coordNew[1] = yCoord - (dt / 2) * (velocity0[1] - velocity1[1]);
+                                    coordNew[2] = zCoord - (dt / 2) * (velocity0[2] - velocity1[2]);
+
+                                    if (Utilities.in_domain(coordNew, omega))
+                                    {
+                                        x[i, j, k] = Utilities.trilinear_interpolation(i - (dt / (2 * hx)) * (velocity0[0] + velocity1[0]),
+                                                    j - (dt / (2 * hy)) * (velocity0[1] + velocity1[1]), k - (dt / (2 * hz)) * (velocity0[2] + velocity1[2]), x0);
+                                    }
+                                    break;
                             }
-                        }
-                  
+                        }                  
                     }
                 }
             }
@@ -682,7 +695,7 @@ namespace FastFluidSolver
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
 
-            /*advect(ref u, u_old, u_old, v_old, w_old, 2);
+            advect(ref u, u_old, u_old, v_old, w_old, 2);
             advect(ref v, v_old, u_old, v_old, w_old, 3);
             advect(ref w, w_old, u_old, v_old, w_old, 4);
 
@@ -690,7 +703,7 @@ namespace FastFluidSolver
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, w_old, 0, w.Length);*/
+            Array.Copy(w, 0, w_old, 0, w.Length);
         }
 
         /*****************************************************************************
