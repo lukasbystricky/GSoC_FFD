@@ -72,7 +72,8 @@ namespace FastFluidSolver
         /****************************************************************************
          * Constructor
          ****************************************************************************/
-        public FluidSolver(Domain omega, double dt, double nu, double[, ,] u0, double[, ,] v0, double[, ,] w0, solver_struct solver_prams)
+        public FluidSolver(Domain omega, double dt, double nu,  double[, ,] u0, double[, ,] v0, 
+                double[, ,] w0, solver_struct solver_prams)
         {
             Nx = omega.Nx;
             Ny = omega.Ny;
@@ -133,6 +134,28 @@ namespace FastFluidSolver
             w_old = old.w_old;
 
             solver_prams = old.solver_prams;
+        }
+
+
+        /****************************************************************************
+         * Add forcing term
+         ****************************************************************************/
+        void add_force(double[, ,] f, ref double[, ,] x)
+        {
+            int Sx = x.GetLength(0);
+            int Sy = x.GetLength(1);
+            int Sz = x.GetLength(2);
+
+            for (int i = 0; i < Sx; i++)
+            {
+                for (int j = 0; j < Sy; j++)
+                {
+                    for (int k = 0; k < Sz; k++)
+                    {
+                        x[i, j, k] += dt*f[i, j, k];
+                    }
+                }
+            }
         }
 
         /****************************************************************************
@@ -231,7 +254,8 @@ namespace FastFluidSolver
          *         
          * TO DO: implement in parallel
          **************************************************************************/
-        void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely,  double[, ,] velz, int grid_type)
+        void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely, 
+                    double[, ,] velz, int grid_type)
         {
             int Sx = x.GetLength(0);
             int Sy = x.GetLength(1);
@@ -305,7 +329,8 @@ namespace FastFluidSolver
 
                                 case 2:
 
-                                    velocity1 = de.get_velocity(xCoord - dt * velocity0[0], yCoord - dt * velocity0[1], zCoord - dt * velocity0[2]);
+                                    velocity1 = de.get_velocity(xCoord - dt * velocity0[0], yCoord - 
+                                                                dt * velocity0[1], zCoord - dt * velocity0[2]);
 
                                     coordNew[0] = xCoord - (dt / 2) * (velocity0[0] - velocity1[0]);
                                     coordNew[1] = yCoord - (dt / 2) * (velocity0[1] - velocity1[1]);
@@ -313,8 +338,10 @@ namespace FastFluidSolver
 
                                     if (Utilities.in_domain(coordNew, omega))
                                     {
-                                        x[i, j, k] = Utilities.trilinear_interpolation(i - (dt / (2 * hx)) * (velocity0[0] + velocity1[0]),
-                                                    j - (dt / (2 * hy)) * (velocity0[1] + velocity1[1]), k - (dt / (2 * hz)) * (velocity0[2] + velocity1[2]), x0);
+                                        x[i, j, k] = Utilities.trilinear_interpolation(i - 
+                                                        (dt / (2 * hx)) * (velocity0[0] + velocity1[0]), j - 
+                                                        (dt / (2 * hy)) * (velocity0[1] + velocity1[1]), k - 
+                                                        (dt / (2 * hz)) * (velocity0[2] + velocity1[2]), x0);
                                     }
                                     break;
                             }
@@ -415,203 +442,304 @@ namespace FastFluidSolver
                                      *******************************************************************/
 
                                     //-x face
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1)
                                     {
                                         p[i - 1, j - 1, k] = p[i, j, k];
 
-                                        u[i - 1, j - 1, k] = 2 * omega.boundary_u[i - 1, j - 1, k] - omega.boundary_u[i - 1, j, k];
-                                        v[i - 1, j - 1, k] = 2 * omega.boundary_v[i - 1, j - 1, k] - omega.boundary_v[i, j - 1, k];
-                                        w[i - 1, j - 1, k] = 4 * omega.boundary_w[i - 1, j - 1, k] + w[i, j, k] - 2 * omega.boundary_w[i, j - 1, k] -
-                                                                    2 * omega.boundary_w[i - 1, j, k];
+                                        u[i - 1, j - 1, k] = 2 * omega.boundary_u[i - 1, j - 1, k] - 
+                                            omega.boundary_u[i - 1, j, k];
+
+                                        v[i - 1, j - 1, k] = 2 * omega.boundary_v[i - 1, j - 1, k] - 
+                                            omega.boundary_v[i, j - 1, k];
+
+                                        w[i - 1, j - 1, k] = 4 * omega.boundary_w[i - 1, j - 1, k] + 
+                                            w[i, j, k] - 2 * omega.boundary_w[i, j - 1, k] -
+                                            2 * omega.boundary_w[i - 1, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1)
                                     {
                                         p[i - 1, j + 1, k] = p[i, j, k];
 
-                                        u[i - 1, j + 1, k] = 2 * omega.boundary_u[i - 1, j + 1, k] - omega.boundary_u[i - 1, j, k];
-                                        v[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - omega.boundary_v[i, j, k];
-                                        w[i - 1, j + 1, k] = 4 * omega.boundary_w[i - 1, j + 1, k] + w[i, j, k] - 2 * omega.boundary_w[i - 1, j, k] -
-                                                                    2 * omega.boundary_w[i, j + 1, k];
+                                        u[i - 1, j + 1, k] = 2 * omega.boundary_u[i - 1, j + 1, k] - 
+                                            omega.boundary_u[i - 1, j, k];
+
+                                        v[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - 
+                                            omega.boundary_v[i, j, k];
+
+                                        w[i - 1, j + 1, k] = 4 * omega.boundary_w[i - 1, j + 1, k] + 
+                                            w[i, j, k] - 2 * omega.boundary_w[i - 1, j, k] -
+                                            2 * omega.boundary_w[i, j + 1, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
                                         p[i - 1, j, k - 1] = p[i, j, k];
 
-                                        u[i - 1, j, k - 1] = 2 * omega.boundary_u[i - 1, j, k - 1] - omega.boundary_u[i - 1, j, k];
-                                        w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k - 1] - omega.boundary_w[i, j, k - 1];
-                                        v[i - 1, j, k - 1] = 4 * omega.boundary_v[i - 1, j, k - 1] + v[i, j, k] - 2 * omega.boundary_v[i - 1, j, k] -
-                                                                        2 * omega.boundary_v[i, j, k - 1];
+                                        u[i - 1, j, k - 1] = 2 * omega.boundary_u[i - 1, j, k - 1] - 
+                                            omega.boundary_u[i - 1, j, k];
+
+                                        w[i - 1, j, k - 1] = 2 * omega.boundary_w[i - 1, j, k - 1] - 
+                                            omega.boundary_w[i, j, k - 1];
+
+                                        v[i - 1, j, k - 1] = 4 * omega.boundary_v[i - 1, j, k - 1] + 
+                                            v[i, j, k] - 2 * omega.boundary_v[i - 1, j, k] -
+                                            2 * omega.boundary_v[i, j, k - 1];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
                                         p[i - 1, j, k + 1] = p[i, j, k];
 
-                                        u[i - 1, j, k + 1] = 2 * omega.boundary_u[i - 1, j, k + 1] - omega.boundary_u[i - 1, j, k];
-                                        v[i - 1, j, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] + v[i, j, k] - 2 * omega.boundary_v[i - 1, j, k] -
-                                                                        2 * omega.boundary_v[i, j, k + 1];
-                                        w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - 2 * omega.boundary_w[i, j, k];
+                                        u[i - 1, j, k + 1] = 2 * omega.boundary_u[i - 1, j, k + 1] - 
+                                            omega.boundary_u[i - 1, j, k];
+
+                                        v[i - 1, j, k + 1] = 4 * omega.boundary_v[i - 1, j, k + 1] + 
+                                            v[i, j, k] - 2 * omega.boundary_v[i - 1, j, k] -
+                                            2 * omega.boundary_v[i, j, k + 1];
+
+                                        w[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - 
+                                            omega.boundary_w[i, j, k];
                                     }
 
                                     //+x face
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1)
                                     {
                                         p[i + 1, j - 1, k] = p[i, j, k];
 
-                                        u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - omega.boundary_u[i, j, k];
-                                        v[i + 1, j - 1, k] = 2 * omega.boundary_v[i + 1, j - 1, k] - omega.boundary_v[i, j - 1, k];
-                                        w[i + 1, j - 1, k] = 4 * omega.boundary_w[i + 1, j - 1, k] + w[i, j, k] - 2 * omega.boundary_w[i + 1, j, k] -
-                                                                        2 * omega.boundary_w[i, j - 1, k];
+                                        u[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - 
+                                            omega.boundary_u[i, j, k];
+
+                                        v[i + 1, j - 1, k] = 2 * omega.boundary_v[i + 1, j - 1, k] - 
+                                            omega.boundary_v[i, j - 1, k];
+
+                                        w[i + 1, j - 1, k] = 4 * omega.boundary_w[i + 1, j - 1, k] + 
+                                            w[i, j, k] - 2 * omega.boundary_w[i + 1, j, k] -
+                                            2 * omega.boundary_w[i, j - 1, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1)
                                     {
                                         p[i + 1, j + 1, k] = p[i, j, k];
 
-                                        u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - omega.boundary_u[i, j, k];
-                                        v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - omega.boundary_v[i, j, k];
-                                        w[i + 1, j + 1, k] = 4 * omega.boundary_w[i + 1, j + 1, k] + w[i, j, k] - 2 * omega.boundary_w[i + 1, j, k] -
-                                                                        2 * omega.boundary_w[i, j + 1, k];
+                                        u[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - 
+                                            omega.boundary_u[i, j, k];
+
+                                        v[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - 
+                                            omega.boundary_v[i, j, k];
+
+                                        w[i + 1, j + 1, k] = 4 * omega.boundary_w[i + 1, j + 1, k] + 
+                                            w[i, j, k] - 2 * omega.boundary_w[i + 1, j, k] -
+                                            2 * omega.boundary_w[i, j + 1, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
                                         p[i + 1, j, k - 1] = p[i, j, k];
 
-                                        u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - omega.boundary_u[i, j, k];
-                                        w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k - 1] - omega.boundary_w[i, j, k - 1];
-                                        v[i + 1, j, k - 1] = 4 * omega.boundary_v[i + 1, j, k - 1] + v[i, j, k] - 2 * omega.boundary_v[i + 1, j, k] -
-                                                                        2 * omega.boundary_v[i, j, k - 1];
+                                        u[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - 
+                                            omega.boundary_u[i, j, k];
+
+                                        w[i + 1, j, k - 1] = 2 * omega.boundary_w[i + 1, j, k - 1] - 
+                                            omega.boundary_w[i, j, k - 1];
+
+                                        v[i + 1, j, k - 1] = 4 * omega.boundary_v[i + 1, j, k - 1] + 
+                                            v[i, j, k] - 2 * omega.boundary_v[i + 1, j, k] -
+                                            2 * omega.boundary_v[i, j, k - 1];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
                                         p[i + 1, j, k + 1] = p[i, j, k];
 
-                                        u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - omega.boundary_u[i, j, k];
-                                        v[i + 1, j, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] + v[i, j, k] - 2 * omega.boundary_v[i + 1, j, k] -
-                                                                        2 * omega.boundary_v[i, j, k + 1];
-                                        w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - omega.boundary_w[i, j, k];
+                                        u[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - 
+                                            omega.boundary_u[i, j, k];
+
+                                        v[i + 1, j, k + 1] = 4 * omega.boundary_v[i + 1, j, k + 1] + 
+                                            v[i, j, k] - 2 * omega.boundary_v[i + 1, j, k] -
+                                            2 * omega.boundary_v[i, j, k + 1];
+
+                                        w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - 
+                                            omega.boundary_w[i, j, k];
                                     }
 
                                     //y,z faces
-                                    if (omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
                                         p[i, j - 1, k - 1] = p[i, j, k];
 
-                                        u[i, j - 1, k - 1] = 4 * omega.boundary_u[i, j - 1, k - 1] + u[i, j, k] - 2 * omega.boundary_u[i, j, k - 1] -
-                                                                    2 * omega.boundary_u[i, j - 1, k];
-                                        v[i, j - 1, k - 1] = 2 * omega.boundary_v[i, j - 1, k - 1] - omega.boundary_v[i, j - 1, k];
-                                        w[i, j - 1, k - 1] = 2 * omega.boundary_w[i, j - 1, k - 1] - omega.boundary_w[i, j, k - 1];
+                                        u[i, j - 1, k - 1] = 4 * omega.boundary_u[i, j - 1, k - 1] + 
+                                            u[i, j, k] - 2 * omega.boundary_u[i, j, k - 1] -
+                                            2 * omega.boundary_u[i, j - 1, k];
+
+                                        v[i, j - 1, k - 1] = 2 * omega.boundary_v[i, j - 1, k - 1] - 
+                                            omega.boundary_v[i, j - 1, k];
+
+                                        w[i, j - 1, k - 1] = 2 * omega.boundary_w[i, j - 1, k - 1] - 
+                                            omega.boundary_w[i, j, k - 1];
                                     }
 
-                                    if (omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
                                         p[i, j - 1, k + 1] = p[i, j, k];
 
-                                        u[i, j - 1, k + 1] = 4 * omega.boundary_u[i, j - 1, k + 1] + u[i, j, k] - 2 * omega.boundary_u[i, j, k + 1] -
-                                                                    2 * omega.boundary_u[i, j - 1, k];
-                                        v[i, j - 1, k + 1] = 2 * omega.boundary_v[i, j - 1, k + 1] - omega.boundary_v[i, j - 1, k];
-                                        w[i, j - 1, k] = 2 * omega.boundary_w[i, j - 1, k] - omega.boundary_w[i, j, k];
+                                        u[i, j - 1, k + 1] = 4 * omega.boundary_u[i, j - 1, k + 1] + 
+                                            u[i, j, k] - 2 * omega.boundary_u[i, j, k + 1] -
+                                            2 * omega.boundary_u[i, j - 1, k];
+
+                                        v[i, j - 1, k + 1] = 2 * omega.boundary_v[i, j - 1, k + 1] - 
+                                            omega.boundary_v[i, j - 1, k];
+
+                                        w[i, j - 1, k] = 2 * omega.boundary_w[i, j - 1, k] - 
+                                            omega.boundary_w[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
                                         p[i, j + 1, k - 1] = p[i, j, k];
 
-                                        u[i, j + 1, k - 1] = 4 * omega.boundary_u[i, j + 1, k - 1] + u[i, j, k] - 2 * omega.boundary_u[i, j, k - 1] -
-                                                                    2 * omega.boundary_u[i, j + 1, k];
-                                        v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - omega.boundary_v[i, j, k];
-                                        w[i, j + 1, k - 1] = 2 * omega.boundary_w[i, j + 1, k - 1] - omega.boundary_w[i, j, k - 1];
+                                        u[i, j + 1, k - 1] = 4 * omega.boundary_u[i, j + 1, k - 1] + 
+                                            u[i, j, k] - 2 * omega.boundary_u[i, j, k - 1] -
+                                            2 * omega.boundary_u[i, j + 1, k];
+
+                                        v[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - 
+                                            omega.boundary_v[i, j, k];
+
+                                        w[i, j + 1, k - 1] = 2 * omega.boundary_w[i, j + 1, k - 1] - 
+                                            omega.boundary_w[i, j, k - 1];
                                     }
 
-                                    if (omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
                                         p[i, j + 1, k + 1] = p[i, j, k];
 
-                                        u[i, j + 1, k + 1] = 4 * omega.boundary_u[i, j + 1, k + 1] + u[i, j, k] - 2 * omega.boundary_u[i, j, k + 1] -
-                                                                    2 * omega.boundary_u[i, j + 1, k];
-                                        v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - omega.boundary_v[i, j, k];
-                                        w[i, j + 1, k] = 2 * omega.boundary_w[i, j + 1, k] - omega.boundary_w[i, j, k];
+                                        u[i, j + 1, k + 1] = 4 * omega.boundary_u[i, j + 1, k + 1] + 
+                                            u[i, j, k] - 2 * omega.boundary_u[i, j, k + 1] -
+                                            2 * omega.boundary_u[i, j + 1, k];
+
+                                        v[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - 
+                                            omega.boundary_v[i, j, k];
+
+                                        w[i, j + 1, k] = 2 * omega.boundary_w[i, j + 1, k] - 
+                                            omega.boundary_w[i, j, k];
                                     }
 
                                     /*****************************************************************************
                                      * 8 corners
                                      *****************************************************************************/
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
-                                        u[i - 1, j - 1, k - 1] = 4 * omega.boundary_u[i - 1, j - 1, k - 1] + u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j - 1, k] -
-                                                                                 2 * omega.boundary_u[i - 1, j, k - 1];
+                                        u[i - 1, j - 1, k - 1] = 4 * omega.boundary_u[i - 1, j - 1, k - 1] + 
+                                            u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j - 1, k] -
+                                            2 * omega.boundary_u[i - 1, j, k - 1];
 
-                                        v[i - 1, j - 1, k - 1] = 4 * omega.boundary_v[i - 1, j - 1, k - 1] + v[i, j - 1, k] - 2 * omega.boundary_v[i - 1, j - 1, k] -
-                                                                                 2 * omega.boundary_v[i, j - 1, k - 1];
+                                        v[i - 1, j - 1, k - 1] = 4 * omega.boundary_v[i - 1, j - 1, k - 1] + 
+                                            v[i, j - 1, k] - 2 * omega.boundary_v[i - 1, j - 1, k] -
+                                            2 * omega.boundary_v[i, j - 1, k - 1];
 
-                                        w[i - 1, j - 1, k - 1] = 4 * omega.boundary_w[i - 1, j - 1, k - 1] + w[i, j, k - 1] - 2 * omega.boundary_w[i - 1, j, k - 1] -
-                                                                                 2 * omega.boundary_w[i, j - 1, k - 1];
+                                        w[i - 1, j - 1, k - 1] = 4 * omega.boundary_w[i - 1, j - 1, k - 1] + 
+                                            w[i, j, k - 1] - 2 * omega.boundary_w[i - 1, j, k - 1] -
+                                            2 * omega.boundary_w[i, j - 1, k - 1];
 
                                         p[i - 1, j - 1, k - 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
-                                        u[i - 1, j + 1, k - 1] = 4 * omega.boundary_u[i - 1, j + 1, k - 1] + u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j + 1, k] -
-                                                                                 2 * omega.boundary_u[i - 1, j, k - 1];
+                                        u[i - 1, j + 1, k - 1] = 4 * omega.boundary_u[i - 1, j + 1, k - 1] + 
+                                            u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j + 1, k] -
+                                            2 * omega.boundary_u[i - 1, j, k - 1];
 
-                                        w[i - 1, j + 1, k - 1] = 4 * omega.boundary_w[i - 1, j + 1, k - 1] + w[i, j, k - 1] - 2 * omega.boundary_w[i - 1, j, k - 1] -
-                                                                                 2 * omega.boundary_w[i, j + 1, k - 1];
+                                        w[i - 1, j + 1, k - 1] = 4 * omega.boundary_w[i - 1, j + 1, k - 1] + 
+                                            w[i, j, k - 1] - 2 * omega.boundary_w[i - 1, j, k - 1] -
+                                            2 * omega.boundary_w[i, j + 1, k - 1];
 
                                         p[i - 1, j + 1, k - 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
-                                        u[i - 1, j + 1, k + 1] = 4 * omega.boundary_u[i - 1, j + 1, k + 1] + u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j + 1, k] -
-                                                                                2 * omega.boundary_u[i - 1, j, k + 1];
+                                        u[i - 1, j + 1, k + 1] = 4 * omega.boundary_u[i - 1, j + 1, k + 1] + 
+                                            u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j + 1, k] -
+                                            2 * omega.boundary_u[i - 1, j, k + 1];
+
                                         p[i - 1, j + 1, k + 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == -1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == -1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
-                                        u[i - 1, j - 1, k + 1] = 4 * omega.boundary_u[i - 1, j - 1, k + 1] + u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j - 1, k] -
-                                                                                2 * omega.boundary_u[i - 1, j, k + 1];
+                                        u[i - 1, j - 1, k + 1] = 4 * omega.boundary_u[i - 1, j - 1, k + 1] + 
+                                            u[i - 1, j, k] - 2 * omega.boundary_u[i - 1, j - 1, k] -
+                                            2 * omega.boundary_u[i - 1, j, k + 1];
 
-                                        v[i - 1, j - 1, k + 1] = 4 * omega.boundary_v[i - 1, j - 1, k + 1] + v[i, j - 1, k] - 2 * omega.boundary_v[i - 1, j - 1, k] -
-                                                                                2 * omega.boundary_v[i, j - 1, k + 1];
+                                        v[i - 1, j - 1, k + 1] = 4 * omega.boundary_v[i - 1, j - 1, k + 1] + 
+                                            v[i, j - 1, k] - 2 * omega.boundary_v[i - 1, j - 1, k] -
+                                            2 * omega.boundary_v[i, j - 1, k + 1];
 
                                         p[i - 1, j - 1, k + 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
-                                        v[i + 1, j - 1, k - 1] = 4 * omega.boundary_v[i + 1, j - 1, k - 1] + v[i, j - 1, k] - 2 * omega.boundary_v[i + 1, j - 1, k] -
-                                                                                 2 * omega.boundary_v[i, j - 1, k - 1];
+                                        v[i + 1, j - 1, k - 1] = 4 * omega.boundary_v[i + 1, j - 1, k - 1] + 
+                                            v[i, j - 1, k] - 2 * omega.boundary_v[i + 1, j - 1, k] -
+                                            2 * omega.boundary_v[i, j - 1, k - 1];
 
-                                        w[i + 1, j - 1, k - 1] = 4 * omega.boundary_w[i + 1, j - 1, k - 1] + w[i, j, k - 1] - 2 * omega.boundary_w[i + 1, j, k - 1] -
-                                                                                 omega.boundary_w[i, j - 1, k - 1];
+                                        w[i + 1, j - 1, k - 1] = 4 * omega.boundary_w[i + 1, j - 1, k - 1] + 
+                                            w[i, j, k - 1] - 2 * omega.boundary_w[i + 1, j, k - 1] -
+                                            2*omega.boundary_w[i, j - 1, k - 1];
 
                                         p[i + 1, j - 1, k - 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == -1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == -1)
                                     {
-                                        w[i + 1, j + 1, k - 1] = 4 * omega.boundary_w[i + 1, j + 1, k - 1] + w[i, j, k - 1] - 2 * omega.boundary_w[i + 1, j, k - 1] -
-                                                                                 2 * omega.boundary_w[i, j + 1, k - 1];
+                                        w[i + 1, j + 1, k - 1] = 4 * omega.boundary_w[i + 1, j + 1, k - 1] + 
+                                            w[i, j, k - 1] - 2 * omega.boundary_w[i + 1, j, k - 1] -
+                                            2 * omega.boundary_w[i, j + 1, k - 1];
 
                                         p[i + 1, j + 1, k - 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == 1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == 1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
                                         p[i + 1, j + 1, k + 1] = p[i, j, k];
                                     }
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 && omega.boundary_normal_y[i, j, k] == -1 && omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.boundary_normal_x[i, j, k] == 1 && 
+                                        omega.boundary_normal_y[i, j, k] == -1 && 
+                                        omega.boundary_normal_z[i, j, k] == 1)
                                     {
-                                        v[i + 1, j - 1, k + 1] = 4 * omega.boundary_v[i + 1, j - 1, k + 1] + v[i, j - 1, k] - 2 * omega.boundary_v[i + 1, j - 1, k] -
-                                                                                 2 * omega.boundary_v[i, j - 1, k + 1];
+                                        v[i + 1, j - 1, k + 1] = 4 * omega.boundary_v[i + 1, j - 1, k + 1] + 
+                                            v[i, j - 1, k] - 2 * omega.boundary_v[i + 1, j - 1, k] -
+                                            2 * omega.boundary_v[i, j - 1, k + 1];
 
                                         p[i + 1, j - 1, k + 1] = p[i, j, k];
                                     }
@@ -683,8 +811,16 @@ namespace FastFluidSolver
         /*****************************************************************************
          * Perform a single time step
          *****************************************************************************/
-        public void time_step()
+        public void time_step(double[, ,] f_x, double[, ,] f_y, double[, ,] f_z)
         {
+            /*add_force(f_x, ref u);
+            add_force(f_y, ref v);
+            add_force(f_z, ref w);
+
+            Array.Copy(u, 0, u_old, 0, u.Length);
+            Array.Copy(v, 0, v_old, 0, v.Length);
+            Array.Copy(w, 0, w_old, 0, w.Length);*/
+
             diffuse(u_old, ref u);
             diffuse(v_old, ref v);
             diffuse(w_old, ref w);
@@ -725,14 +861,13 @@ namespace FastFluidSolver
             int Sy = x0.GetLength(1);
             int Sz = x0.GetLength(2);
 
-            //x1 = new double[Sx, Sy, Sz];
-
             int iter = 0;
             double res = 2 * solver_prams.tol;
 
             apply_boundary_conditions();
 
-            while (iter < solver_prams.min_iter || (iter < solver_prams.max_iter && res > solver_prams.tol))
+            while (iter < solver_prams.min_iter || 
+                (iter < solver_prams.max_iter && res > solver_prams.tol))
             {
                 for (int k = 1; k < Sz - 1; k++)
                 {
@@ -742,8 +877,10 @@ namespace FastFluidSolver
                         {
                             if (omega.obstacle_cells[i, j, k] == 0) //if cell not an obstacle
                             {
-                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
-                                            c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] + c[5] * x0[i, j, k + 1])) / a;
+                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + 
+                                    c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
+                                    c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] +
+                                    c[5] * x0[i, j, k + 1])) / a;
                             }
                         }
                     }
@@ -759,7 +896,8 @@ namespace FastFluidSolver
 
             if (solver_prams.verbose)
             {
-                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", res, iter);
+                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", 
+                    res, iter);
             }
         }
     }
