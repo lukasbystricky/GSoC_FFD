@@ -32,6 +32,9 @@ namespace FastFluidSolver
      * i = 0, ... Nx + 1, j = 0, ... Ny + 1, k = 0, ... Nz + 1
      * p at i,j,k = 0, Nx+1 are inside obstacle cells
      ************************************************************************/
+    /// <summary>
+    /// 
+    /// </summary>
     public class FluidSolver
     {
         public struct solver_struct
@@ -72,6 +75,16 @@ namespace FastFluidSolver
         /****************************************************************************
          * Constructor
          ****************************************************************************/
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="omega"></param>
+        /// <param name="dt"></param>
+        /// <param name="nu"></param>
+        /// <param name="u0"></param>
+        /// <param name="v0"></param>
+        /// <param name="w0"></param>
+        /// <param name="solver_prams"></param>
         public FluidSolver(Domain omega, double dt, double nu,  double[, ,] u0, double[, ,] v0, 
                 double[, ,] w0, solver_struct solver_prams)
         {
@@ -140,6 +153,11 @@ namespace FastFluidSolver
         /****************************************************************************
          * Add forcing term
          ****************************************************************************/
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="f"></param>
+        /// <param name="x"></param>
         void add_force(double[, ,] f, ref double[, ,] x)
         {
             int Sx = x.GetLength(0);
@@ -188,7 +206,7 @@ namespace FastFluidSolver
         {
             double[, ,] div = new double[Nx - 1, Ny - 1, Nz - 1];
 
-            // calculate div(w) using finite differences
+            // calculate div(u_old) using finite differences
             for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
@@ -197,8 +215,8 @@ namespace FastFluidSolver
                     {
                         if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
                         {
-                            div[i, j, k] = (u[i, j, k] - u[i - 1, j, k]) / hx +
-                                   (v[i, j, k] - v[i, j - 1, k]) / hy + (w[i, j, k] - w[i, j, k - 1]) / hz;                      
+                            div[i, j, k] = ((u[i, j, k] - u[i - 1, j, k]) / hx +
+                                   (v[i, j, k] - v[i, j - 1, k]) / hy + (w[i, j, k] - w[i, j, k - 1]) / hz) / dt;                     
                         }
                     }
                 }
@@ -219,8 +237,41 @@ namespace FastFluidSolver
 
             gs_solve(a, c, div, p0, ref p);
 
-            //update velocity by subtracting calculate grad(p)
-            for (int i = 0; i < Nx; i++)
+            //update velocity by subtracting grad(p)
+            for (int i = 0; i < u.GetLength(0); i++)
+            {
+                for (int j = 0; j < u.GetLength(1); j++)
+                {
+                    for (int k = 0; k < u.GetLength(2); k++)
+                    {
+                        u[i, j, k] -= dt * (p[i + 1, j, k] - p[i, j, k]) / hx;
+                    }
+                }
+            }
+
+            for (int i = 0; i < v.GetLength(0); i++)
+            {
+                for (int j = 0; j < v.GetLength(1); j++)
+                {
+                    for (int k = 0; k < v.GetLength(2); k++)
+                    {
+                        v[i, j, k] -= dt * (p[i, j + 1, k] - p[i, j, k]) / hy;
+                    }
+                }
+            }
+
+            for (int i = 0; i < w.GetLength(0); i++)
+            {
+                for (int j = 0; j < w.GetLength(1); j++)
+                {
+                    for (int k = 0; k < w.GetLength(2); k++)
+                    {
+                        w[i, j, k] -= dt * (p[i, j, k + 1] - p[i, j, k]) / hz;
+                    }
+                }
+            }
+           
+            /*for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
                 {
@@ -234,7 +285,7 @@ namespace FastFluidSolver
                         }
                     }
                 }
-            }
+            }*/
 
             apply_boundary_conditions();
         }
@@ -815,11 +866,11 @@ namespace FastFluidSolver
         {
             /*add_force(f_x, ref u);
             add_force(f_y, ref v);
-            add_force(f_z, ref w);
+            add_force(f_z, ref w);*/
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
-            Array.Copy(w, 0, w_old, 0, w.Length);*/
+            Array.Copy(w, 0, w_old, 0, w.Length);
 
             diffuse(u_old, ref u);
             diffuse(v_old, ref v);
