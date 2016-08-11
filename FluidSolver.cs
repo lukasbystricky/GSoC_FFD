@@ -7,33 +7,19 @@ using System.Windows;
 
 namespace FastFluidSolver
 {
-    /************************************************************************
-     * Solves the Navier-Stokes equations using the Fast Fluid Dynamics method
-     * desribed by Stam in the paper "Stable Fluids". Uses a staggered grid 
-     * finite difference method to solve the spatial equations and backwards
-     * Euler in time.
-     * 
-     * u[i, j, k] located at (i*hx, (j-0.5)*hy, (k-0.5)*hz)
-     * i = 0, ..., Nx, j = 0, ... Ny + 1, k = 0, ..., Nz + 1
-     * u[0, j, k] and u[Nx-1, j, k] on boundary
-     * u[i, 0, k], u[i, j, 0], u[i, Ny+1, k], u[i, j, Nz+1] inside obstacle cell
-     * 
-     * v[i, j, k] located at ((i-0.5*hx), j*hy, (k-0.5)*hz)
-     * i = 0, ..., Nx + 1, j = 0, ... Ny, k = 0, ..., Nz + 1
-     * v[i, 0, k] and v[i, Ny-1, k] on boundary
-     * v[0, j, k], v[i, j, 0], v[Nx+1, j, k], v[i, j, Nz+1] inside obstacle cell
-     * 
-     * w[i, j, k] located at((i-0.5)*hx, (j-0.5)*hy, k*hz)
-     * i = 0, ..., Nx + 1, j = 0, ... Ny + 1, k = 0, ..., Nz 
-     * w[i, j, 0] and w[i, j, Nz-1] on boundary
-     * w[0, j, k], w[i, 0, k], w[Nx+1, j, k], w[i, Ny+1, k] inside obstacle cell
-     *  
-     * p[i,j,k] located at (i*hx, j*hy, k*hz)
-     * i = 0, ... Nx + 1, j = 0, ... Ny + 1, k = 0, ... Nz + 1
-     * p at i,j,k = 0, Nx+1 are inside obstacle cells
-     ************************************************************************/
     /// <summary>
+    /// Solves the Navier-Stokes equations using the Fast Fluid Dynamics method
+    /// desribed by Stam in the paper "Stable Fluids". 
     /// 
+    /// This implementation uses a staggered grid finite difference method to solve the 
+    /// spatial equations and backwards Euler in time. Uses a Jacobi iterative method to solve 
+    /// the resulting systems. Supports first or second order semi-Lagranian to resolve
+    /// advection term. 
+    /// 
+    /// List of possible future improvements:
+    /// 1. Parallelize code, in particular Jacobi solver
+    /// 2. Create lists of obstacle and boundary cells to avoid looping over all cells
+    ///     when applying boundary conditions
     /// </summary>
     public class FluidSolver
     {
@@ -49,13 +35,14 @@ namespace FastFluidSolver
         private solver_struct solver_prams;
 
         public double[, ,] u; // x component of velocity
-        public double[, ,] v;// y component of velocity
+        public double[, ,] v; // y component of velocity
         public double[, ,] w; // z component of velocity
         public double[, ,] p; // pressure
 
         private double[, ,] u_old; //scratch arrays for velocities
         private double[, ,] v_old;
         private double[, ,] w_old;
+        private double[, ,] p_old;
 
         private double dt;  //time step
         public int Nx { get; private set; } //number of points in each x coordinate direction
@@ -69,22 +56,16 @@ namespace FastFluidSolver
 
         Domain omega;
 
-        void initialize() { }
-        void add_force() { }
-
-        /****************************************************************************
-         * Constructor
-         ****************************************************************************/
         /// <summary>
-        /// 
+        /// Constructor for the fluid solver class.
         /// </summary>
-        /// <param name="omega"></param>
-        /// <param name="dt"></param>
-        /// <param name="nu"></param>
-        /// <param name="u0"></param>
-        /// <param name="v0"></param>
-        /// <param name="w0"></param>
-        /// <param name="solver_prams"></param>
+        /// <param name="omega">domain omega</param>
+        /// <param name="dt">time step size</param>
+        /// <param name="nu">viscosity</param>
+        /// <param name="u0">initial x component of velocity</param>
+        /// <param name="v0">initial y component of velocity</param>
+        /// <param name="w0">initial z component of velocity</param>
+        /// <param name="solver_prams">structure containing solver options</param>
         public FluidSolver(Domain omega, double dt, double nu,  double[, ,] u0, double[, ,] v0, 
                 double[, ,] w0, solver_struct solver_prams)
         {
@@ -111,6 +92,7 @@ namespace FastFluidSolver
             u_old = new double[u.GetLength(0), u.GetLength(1), u.GetLength(2)];
             v_old = new double[v.GetLength(0), v.GetLength(1), v.GetLength(2)];
             w_old = new double[w.GetLength(0), w.GetLength(1), w.GetLength(2)];
+            p_old = new double[p.GetLength(0), p.GetLength(1), p.GetLength(2)];
 
             Array.Copy(u0, 0, u, 0, u0.Length);
             Array.Copy(v0, 0, v, 0, v0.Length);
@@ -121,9 +103,9 @@ namespace FastFluidSolver
             Array.Copy(w, 0, w_old, 0, w.Length);
         }
 
-        /****************************************************************************
-         * Copy constructor
-         ****************************************************************************/
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
         public FluidSolver(FluidSolver old)
         {
             Nx = old.Nx;
@@ -145,19 +127,18 @@ namespace FastFluidSolver
             u_old = old.u_old;
             v_old = old.v_old;
             w_old = old.w_old;
+            p_old = old.p_old;
 
             solver_prams = old.solver_prams;
         }
 
 
-        /****************************************************************************
-         * Add forcing term
-         ****************************************************************************/
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="f"></param>
-        /// <param name="x"></param>
+       /// <summary>
+       /// Update velocity by adding forcing tem, these can external forces like gravity or 
+       /// buoyancy forces for example.
+       /// </summary>
+       /// <param name="f">forces to add</param>
+       /// <param name="x">velocity component array, one of u, v, w</param>
         void add_force(double[, ,] f, ref double[, ,] x)
         {
             int Sx = x.GetLength(0);
@@ -176,10 +157,20 @@ namespace FastFluidSolver
             }
         }
 
-        /****************************************************************************
-         * Diffusion step. Diffuse solve diffusion equation x_t = L(x) using second 
-         * order finite difference in space and backwards Euler in time
-         ****************************************************************************/
+        /// <summary>
+        /// Update velocity/concentration by resolving diffusion term. Solves the diffusion 
+        /// equation x_t = L(x) using second order finite difference in space and implicit
+        /// Euler in time.
+        /// </summary>
+        /// <param name="x_old">Old state</param>
+        /// <param name="x_new">New state</param>
+        /// <param name="grid_type">Type of grid used</param>
+        /// <remarks>Since we are using a staggered grid, we have to know what kind of 
+        /// grid we are using. The following grid numbers are used throughout the program:
+        /// 1: cell centred (pressure, temperature, concentration)
+        /// 2: centre of faces normal to x direction (x component of velocity)
+        /// 3: centre of faces normal to y direction (y component of velocity)
+        /// 4: centre of faces normal to z direction (z component of velocity)</remarks>
         void diffuse(double[, ,] x_old, ref double[, ,] x_new, int grid_type)
         {
             double a = 1 + 2 * nu * dt * (Math.Pow(hx, -2) + Math.Pow(hy, -2) + Math.Pow(hz, -2));
@@ -195,25 +186,25 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            gs_solve(a, c, b, x_old, ref x_new, grid_type);
+            jacobi_solve(a, c, b, x_old, ref x_new, grid_type);
         }
 
-        /*****************************************************************************
-         * Projection step. Solves Poisson equation L(p) = div(u_old) using finte
-         * difference and updates the velocities, u = u_old - grad(p)
-         ****************************************************************************/
+        /// <summary>
+        /// Projection step. Solves a Poisson equation for the pressure L(p) = div(u_old)
+        /// using finite difference and then updates the velocities u = u_old - grad(p).
+        /// </summary>
         void project()
         {
             double[, ,] div = new double[Nx - 1, Ny - 1, Nz - 1];
 
-            // calculate div(u_old) using finite differences
+            // Calculate div(u_old) using finite differences
             for (int i = 0; i < Nx; i++)
             {
                 for (int j = 0; j < Ny; j++)
                 {
                     for (int k = 0; k < Nz; k++)
                     {
-                        if (omega.obstacle_cells[i, j, k] == 0) //node not inside an obstacle
+                        if (omega.obstacle_cells[i, j, k] == 0) 
                         {
                             div[i, j, k] = ((u[i, j, k] - u[i - 1, j, k]) / hx +
                                    (v[i, j, k] - v[i, j - 1, k]) / hy + (w[i, j, k] - w[i, j, k - 1]) / hz) / dt;                     
@@ -232,14 +223,14 @@ namespace FastFluidSolver
             c[4] = c[1];
             c[5] = c[0];
 
-            double[, ,] p0 = new double[Nx, Ny, Nz]; //initial guess for pressure
+            double[, ,] p0 = new double[Nx, Ny, Nz]; // Initial guess for pressure
             Array.Copy(p, p0, p.Length);
 
-            gs_solve(a, c, div, p0, ref p, 1);
+            jacobi_solve(a, c, div, p0, ref p, 1);
 
             double[] coordinate = new double[3];
 
-            //update velocity by subtracting grad(p)
+            // Update velocity by subtracting grad(p)
             for (int i = 0; i < u.GetLength(0); i++)
             {
                 for (int j = 0; j < u.GetLength(1); j++)
@@ -297,21 +288,15 @@ namespace FastFluidSolver
             apply_boundary_conditions();
         }
 
-        /***************************************************************************
-         * Advection step. Uses a first order backtrace to update x.
-         * 
-         * @inputs
-         * double[, ,] x - reference to quantity to advect, can be a velocity, a
-         * concentration or temperature
-         * double[, ,] x0 - initial state of x before advection
-         * double[, ,] velx - x velocity
-         * double[, ,] vely - y velocity 
-         * double[, ,] velz - z velocity 
-         * int grid_type - specifies type of grid: 1 for cell centred, 2 for u velocity
-         *         3 for v velocity, 4 for w velocity
-         *         
-         * TO DO: implement in parallel
-         **************************************************************************/
+        /// <summary>
+        /// Advection step. Resolve advection term by using a semi-Langrangian backtracer.
+        /// </summary>
+        /// <param name="x">Updated state</param>
+        /// <param name="x0">Original state</param>
+        /// <param name="velx">x component of velocity</param>
+        /// <param name="vely">y component of velocity</param>
+        /// <param name="velz">z component of velocity</param>
+        /// <param name="grid_type">Grid type, as described in diffusion method</param>
         void advect(ref double[, ,] x, double[, ,] x0, double[, ,] velx, double[, ,] vely, 
                     double[, ,] velz, int grid_type)
         {
@@ -321,6 +306,7 @@ namespace FastFluidSolver
 
             DataExtractor de = new DataExtractor(omega, this);
 
+            // Loop over every node in x
             for (int i = 1; i < Sx - 1; i++)
             {
                 for (int j = 1; j < Sy - 1; j++)
@@ -332,7 +318,7 @@ namespace FastFluidSolver
                         double[] velocity0, velocity1;
                         xCoord = yCoord = zCoord = 0;
 
-                        //get coordinate of point, and cell(s) to which point belongs
+                        // Get coordinate of node
                         switch (grid_type)
                         {
                             case 1:
@@ -368,20 +354,22 @@ namespace FastFluidSolver
 
                         if (Utilities.in_domain(coordinate, omega))
                         {
+                            // Find velocity at node
                             velocity0 = de.get_velocity(xCoord, yCoord, zCoord);
                             double[] coordBacktraced = new double[3];
-
 
                             switch (solver_prams.backtrace_order)
                             {
                                 case 1:
 
+                                    // Perform linear backtrace to find origin of fluid element
                                     coordBacktraced[0] = xCoord - dt * (velocity0[0]);
                                     coordBacktraced[1] = yCoord - dt * (velocity0[1]);
                                     coordBacktraced[2] = zCoord - dt * (velocity0[2]);
 
                                     if (Utilities.in_domain(coordBacktraced, omega))
                                     {
+                                        // Set velocity at node to be velocity at backtraced coordinate
                                         x[i, j, k] = Utilities.trilinear_interpolation(i - (dt / hx) * velocity0[0],
                                                     j - (dt / hy) * velocity0[1], k - (dt / hz) * velocity0[2], x0);
                                     }
@@ -390,16 +378,10 @@ namespace FastFluidSolver
 
                                 case 2:
 
+                                    // Perform two step second order backtrace to find origin of fluid element
                                     coordBacktraced[0] = xCoord - (dt/2) * (velocity0[0]);
                                     coordBacktraced[1] = yCoord - (dt/2) * (velocity0[1]);
                                     coordBacktraced[2] = zCoord - (dt/2) * (velocity0[2]);
-
-                                    /*velocity1 = de.get_velocity(xCoord - dt * velocity0[0], yCoord -
-                                                                dt * velocity0[1], zCoord - dt * velocity0[2]);
-
-                                    coordBacktraced[0] = xCoord - (dt / 2) * (velocity0[0] - velocity1[0]);
-                                    coordBacktraced[1] = yCoord - (dt / 2) * (velocity0[1] - velocity1[1]);
-                                    coordBacktraced[2] = zCoord - (dt / 2) * (velocity0[2] - velocity1[2]);*/
 
                                     velocity1 = de.get_velocity(coordBacktraced[0], coordBacktraced[1], coordBacktraced[2]);
 
@@ -411,7 +393,7 @@ namespace FastFluidSolver
 
                                     if (Utilities.in_domain(coordBacktraced, omega))
                                     {
-
+                                        // Set velocity at node to be velocity at backtraced coordinate
                                         x[i, j, k] = Utilities.trilinear_interpolation(
                                                         i - (dt / (2 * hx)) * (velocity0[0] + velocity1[0]), 
                                                         j - (dt / (2 * hy)) * (velocity0[1] + velocity1[1]),
@@ -427,24 +409,23 @@ namespace FastFluidSolver
             apply_boundary_conditions();
         }
 
-        /*********************************************************************************
-         * Applies the Dirichlet boundary conditions from the domain omega to the velocities
-         * and homogeneuous Neumann boundary conditions to the pressure
-         ********************************************************************************/
+        /// <summary>
+        /// Applies the boundary conditions. 
+        /// </summary>
+        /// <remarks>The staggered grid makes this the longest part of the code.</remarks>
         void apply_boundary_conditions()
         {
-            //loop over all cells
-            for (int i = 0; i < Nx; i++)
+            // loop over all cells
+            for (int i = 1; i < Nx - 1; i++)
             {
-                for (int j = 0; j < Ny; j++)
+                for (int j = 1; j < Ny - 1; j++)
                 {
-                    for (int k = 0; k < Nz; k++)
+                    for (int k = 1; k < Nz - 1; k++)
                     {
                         if (omega.obstacle_cells[i,j,k] == 0)
                         {
                             if (omega.boundary_cells[i, j, k] == 1)
                             {
-
                                 /****************************************************************
                                  * 6 faces, +x, -x, +y, -y, +z, -z
                                  * 
@@ -889,19 +870,176 @@ namespace FastFluidSolver
             }
         }
 
+        /// <summary>
+        /// Calculate mass inflow and outflow
+        /// </summary>
+        /// <param name="m_in">Total mass inflow</param>
+        /// <param name="m_out">Total mass outflow</param>
+        private void calculate_mass_flux(out double m_in, out double m_out)
+        {
+            m_in = 0;
+            m_out = 0;
 
-        /*****************************************************************************
-         * Perform a single time step
-         *****************************************************************************/
+            // loop over all cells
+            for (int i = 1; i < Nx - 1; i++)
+            {
+                for (int j = 1; j < Ny - 1; j++)
+                {
+                    for (int k = 1; k < Nz - 1; k++)
+                    {
+                        if (omega.obstacle_cells[i, j, k] == 0)
+                        {
+                            if (omega.boundary_normal_x[i, j, k] == -1)//-x face
+                            {
+                                if (u[i - 1, j, k] > 0)
+                                {
+                                    m_in += u[i - 1, j, k] * hy * hz;
+                                }
+                                else
+                                {
+                                    m_out -= u[i - 1, j, k] * hy * hz;
+                                }
+                            }
+
+                            if (omega.boundary_normal_x[i, j, k] == 1)
+                            {
+                                if (u[i, j, k] > 0)
+                                {
+                                    m_out += u[i, j, k] * hy * hz;
+                                }
+                                else
+                                {
+                                    m_in -= u[i, j, k] * hy * hz;
+                                }
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == -1)
+                            {
+                                if (v[i, j - 1, k] > 0)
+                                {
+                                    m_in += v[i, j - 1, k] * hx * hz;
+                                }
+                                else
+                                {
+                                    m_out -= v[i, j - 1, k] * hx * hz;
+                                }
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == 1)
+                            {
+                                if (v[i, j, k] > 0)
+                                {
+                                    m_out += v[i, j, k] * hx * hz;
+                                }
+                                else
+                                {
+                                    m_in -= v[i, j, k] * hx * hz;
+                                }
+                            }
+
+                            if (omega.boundary_normal_z[i, j, k] == -1)
+                            {
+                                if (w[i, j - 1, k] > 0)
+                                {
+                                    m_in += w[i, j, k - 1] * hx * hy;
+                                }
+                                else
+                                {
+                                    m_out -= w[i, j, k - 1] * hx * hy;
+                                }
+                            }
+
+                            if (omega.boundary_normal_z[i, j, k] == 1)
+                            {
+                                if (w[i, j, k] > 0)
+                                {
+                                    m_out += w[i, j, k] * hx * hy;
+                                }
+                                else
+                                {
+                                    m_in -= w[i, j, k] * hx * hy;
+                                }
+                            }                            
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Apply mass correction to outflow as described by Zuo et al in 2010 paper
+        /// "Improvements in FFD Modeling by Using Different Numerical Schemes"
+        /// </summary>
+        /// <param name="alpha">Ratio used in correction factor</param>
+        /// <remarks>alpha = 1 ensures perfect mass conservation (over domain boundary), 
+        /// however paper suggests alpha = 0.7 to avoid instability</remarks>
+        private void apply_mass_correction(double alpha)
+        {
+            double m_in, m_out, correction_factor;
+            calculate_mass_flux(out m_in, out m_out);
+
+            correction_factor = 1 + alpha * (m_in / m_out);
+
+            for (int i = 1; i < Nx - 1; i++)
+            {
+                for (int j = 1; j < Ny - 1; j++)
+                {
+                    for (int k = 1; k < Nz - 1; k++)
+                    {
+                        if (omega.obstacle_cells[i, j, k] == 0)
+                        {
+                            if (omega.boundary_normal_x[i, j, k] == -1)
+                            {
+                                u[i - 1, j, k] *= ((u[i - 1, j, k] < 0) ? correction_factor : 1);  
+                            }
+
+                            if (omega.boundary_normal_x[i, j, k] == 1)
+                            {
+                                u[i, j, k] *= ((u[i, j, k] > 0) ? correction_factor : 1);
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == -1)
+                            {
+                                v[i, j - 1, k] *= ((v[i, j - 1, k] < 0) ? correction_factor : 1);
+                            }
+
+                            if (omega.boundary_normal_y[i, j, k] == 1)
+                            {
+                                v[i, j, k] *= ((v[i, j, k] > 0) ? correction_factor : 1);
+                            }
+
+                            if (omega.boundary_normal_z[i, j, k] == -1)
+                            {
+                                w[i, j, k - 1] *= ((w[i, j, k - 1] < 0) ? correction_factor : 1);
+                            }
+
+                            if (omega.boundary_normal_x[i, j, k] == 1)
+                            {
+                                w[i, j, k] *= ((w[i, j, k] > 0) ? correction_factor : 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Perform a single time step. Add forces, diffuse, project, advect, project.
+        /// </summary>
+        /// <param name="f_x">x component of forcing term</param>
+        /// <param name="f_y">y component of forcing term</param>
+        /// <param name="f_z">z component of forcing term</param>
         public void time_step(double[, ,] f_x, double[, ,] f_y, double[, ,] f_z)
         {
-            /*add_force(f_x, ref u);
+            add_force(f_x, ref u);
             add_force(f_y, ref v);
-            add_force(f_z, ref w);*/
+            add_force(f_z, ref w);
 
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
+            Array.Copy(p, 0, p_old, 0, p.Length);
 
             diffuse(u_old, ref u, 2);
             diffuse(v_old, ref v, 3);
@@ -912,28 +1050,30 @@ namespace FastFluidSolver
             Array.Copy(u, 0, u_old, 0, u.Length);
             Array.Copy(v, 0, v_old, 0, v.Length);
             Array.Copy(w, 0, w_old, 0, w.Length);
+            Array.Copy(p, 0, p_old, 0, p.Length);
 
             advect(ref u, u_old, u_old, v_old, w_old, 2);
             advect(ref v, v_old, u_old, v_old, w_old, 3);
             advect(ref w, w_old, u_old, v_old, w_old, 4);
 
+            apply_mass_correction(0);
+
             project();
         }
 
-        /*****************************************************************************
-         * Solves the banded system given by the finite difference method applied
-         * to the Poisson or diffusion equation using the iterative Gauss-Seidel method.
-         * @inputs
-         * double a - coefficient along diagonal entry
-         * double[] c[6] - coefficient of all other nonzero entries in order from left 
-         * to right (-k, -j, -i, +i, +j, +k)
-         * double[, ,] b - right hand side
-         * double[, ,] x0 - initial guess
-         * out double[, ,] x1 - solution
-         * 
-         * TO DO: add Jacobi solver, which can be run on multiple cores
-         ****************************************************************************/
-        void gs_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1, int grid_type)
+        /// <summary>
+        /// Solves the sparse banded system given by the finite difference method applied
+        /// to the Poisson or diffusion equation using the iterative Jacobi method.
+        /// </summary>
+        /// <param name="a">coefficient for diagonal entry</param>
+        /// <param name="c">coefficint array other 6 non-zero entries in each row</param>
+        /// <param name="b">right hand side</param>
+        /// <param name="x0">initial guess</param>
+        /// <param name="x1">solution</param>
+        /// <param name="grid_type">grid type as described in diffusion method</param>
+        /// <remarks>The coefficients for the 6 nonzero entries in each row are given in the 
+        /// order x[i,j,k-1], x[i,j-1,k], x[i-1,j,k], x[i+1,j,k], x[i,j+1,k, x[i,j,k+1]</remarks>
+        void jacobi_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1, int grid_type)
         {
             int Sx = x0.GetLength(0);
             int Sy = x0.GetLength(1);
@@ -944,11 +1084,11 @@ namespace FastFluidSolver
 
             double[] coordinate = new double[3];
 
-            apply_boundary_conditions();
-
             while (iter < solver_prams.min_iter || 
                 (iter < solver_prams.max_iter && res > solver_prams.tol))
             {
+                apply_boundary_conditions();
+
                 for (int k = 1; k < Sz - 1; k++)
                 {
                     for (int j = 1; j < Sy - 1; j++)
@@ -971,39 +1111,38 @@ namespace FastFluidSolver
 
                                 case 3:
                                     coordinate[0] = (i - 0.5) * hx;
-                                    coordinate[1] = (j - 1) * hy;
+                                    coordinate[1] = j * hy;
                                     coordinate[2] = (k - 0.5) * hz;
                                     break;
 
                                 case 4:
                                     coordinate[0] = (i - 0.5) * hx;
                                     coordinate[1] = (j - 0.5) * hy;
-                                    coordinate[2] = (k - 1) * hz;
+                                    coordinate[2] = k * hz;
                                     break;
                             }
 
-                            if (Utilities.in_domain(coordinate, omega)) //if cell not an obstacle
+                            if ( Utilities.in_domain(coordinate, omega)) 
                             {
-                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] + 
+                                x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] +
                                     c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
                                     c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] +
                                     c[5] * x0[i, j, k + 1])) / a;
+                                                          
                             }
                         }
                     }
                 }
 
-                apply_boundary_conditions();
-
                 res = Utilities.compute_L2_difference(x0, x1);
                 iter++;
 
                 Array.Copy(x1, 0, x0, 0, x1.Length);
-            }
+            }     
 
             if (solver_prams.verbose)
             {
-                Console.WriteLine("Gauss-Seidel solver completed with residual of {0} in {1} iterations", 
+                Console.WriteLine("Jacobi solver completed with residual of {0} in {1} iterations", 
                     res, iter);
             }
         }
