@@ -6,11 +6,17 @@ using System.Threading.Tasks;
 
 namespace FastFluidSolver
 {
+    /// <summary>
+    /// Domain for the lid driven cavity
+    /// </summary>
     public class CavityDomain : Domain
     {
-        /***************************************************************************
-         * Constructor
-         **************************************************************************/
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="Nx">Number of cells in x direction (including ghost cells)</param>
+        /// <param name="Ny">Number of cells in y direction (including ghost cells)</param>
+        /// <param name="Nz">Number of cells in z direction (including ghost cells)</param>
         public CavityDomain(int Nx, int Ny, int Nz)
         {
             this.Nx = Nx;
@@ -33,29 +39,31 @@ namespace FastFluidSolver
             boundary_u = new double[Nx - 1, Ny, Nz];
             boundary_v = new double[Nx, Ny - 1, Nz];
             boundary_w = new double[Nx, Ny, Nz - 1];
+            outflow_boundary_x = new int[Nx, Ny, Nz];
+            outflow_boundary_y = new int[Nx, Ny, Nz];
+            outflow_boundary_z = new int[Nx, Ny, Nz];
 
-            outflow_cells = new int[Nx, Ny, Nz];
             //C# default values for int or double arrays are 0, so we only need to set nonzero fields
 
             set_ghost_flags();
+            set_boundary_flags();
 
             /**************************************************************************************
-                * u boundary conditions
+             * u boundary conditions
              *************************************************************************************/
             for (int i = 0; i < boundary_u.GetLength(0); i++)
             {
                 for (int j = 0; j < boundary_u.GetLength(1); j++)
                 {
-                    boundary_u[i, j, boundary_u.GetLength(2) - 1] = 1;
-
-                    //boundary_u[i, j, 0] = 1;
+                    boundary_u[i, j, Nz - 1] = 1;
                 }
             }
         }        
 
-        /***********************************************************************
-         * Copy constructor
-         ***********************************************************************/
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        /// <param name="old"></param>
         public CavityDomain(CavityDomain old)
         {
             Nx = old.Nx;
@@ -78,6 +86,10 @@ namespace FastFluidSolver
             boundary_u = old.boundary_u;
             boundary_v = old.boundary_v;
             boundary_w = old.boundary_w;
+
+            outflow_boundary_x = old.outflow_boundary_x;
+            outflow_boundary_y = old.outflow_boundary_y;
+            outflow_boundary_z = old.outflow_boundary_z;
         }
     }
 }
