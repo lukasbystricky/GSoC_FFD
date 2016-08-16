@@ -26,9 +26,9 @@ namespace FastFluidSolver
         public double[, ,] boundary_v { get; protected set; }   //y component of velocity at boundary
         public double[, ,] boundary_w { get; protected set; }   //z component of velocity at boundary  
 
-        /*********************************************************************************************
-         * add flags indicating obstacle (ghost) cells around entire domain
-         ********************************************************************************************/
+        /// <summary>
+        /// Labels "ghost cells" outside domain as obstacles and flags cells adjacent to them as boundary cells.
+        /// </summary>
         protected void set_ghost_flags()
         {
             //x = 0 and x = length_x boundaries
@@ -80,9 +80,10 @@ namespace FastFluidSolver
             }
         }
 
-        /*******************************************************************************************
-         * add boundary flags and normal flags on cells bordering obstacles
-         ******************************************************************************************/
+        
+        /// <summary>
+        /// Adds boundary flags to cells adjacent to obstacles.
+        /// </summary>
         protected void set_boundary_flags()
         {
             for (int i = 1; i < Nx - 1; i++)
@@ -132,6 +133,58 @@ namespace FastFluidSolver
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Adds an obstacle to the domain.
+        /// </summary>
+        /// <param name="xmin">minimum x coordinate of obstacle</param>
+        /// <param name="xmax">maximum x coordinate of obstacle</param>
+        /// <param name="ymin">minimum y coordinate of obstacle</param>
+        /// <param name="ymax">maximum y coordinate of obstacle</param>
+        /// <param name="zmin">minimum z coordinate of obstacle</param>
+        /// <param name="zmax">maximum z coordinate of obstacle</param>
+        public void add_obstacle(double xmin, double xmax, double ymin, double ymax,
+                double zmin, double zmax)
+        {
+            int i_start = (int)Math.Floor(xmin * (Nx - 2) / length_x);
+            int i_end = (int)Math.Floor(xmax * (Nx - 2) / length_x);
+            int j_start = (int)Math.Floor(ymin * (Ny - 2) / length_y);
+            int j_end = (int)Math.Floor(ymax * (Ny - 2) / length_y);
+            int k_start = (int)Math.Floor(zmin * (Nz - 2) / length_z);
+            int k_end = (int)Math.Floor(zmax * (Nz - 2) / length_z);
+
+            for (int i = i_start; i < i_end; i++)
+            {
+                for (int j = j_start; j < j_end; j++)
+                {
+                    for (int k = k_start; k < k_end; k++)
+                    {
+                        obstacle_cells[i, j, k] = 1;
+                    }
+                }
+            }
+            
+            set_boundary_flags();
+        }
+        
+         /// <summary>
+        /// Computes the exact solution at a point if known, the default returns 0 for everything.
+        /// </summary>
+        /// <param name="coordinate">coorindate (x,y,z)</param>
+        /// <param name="nu">fluid viscosity</param>
+        /// <param name="t">time</param>
+        /// <param name="u_exact">exact x component of velocity</param>
+        /// <param name="v_exact">exact y component of velocity</param>
+        /// <param name="w_exact">exact z component of velocity</param>
+        /// <param name="p_exact">exact pressure</param>
+        virtual public void exact_solution(double[] coordinate, double nu, double t, out double u_exact,
+            out double v_exact, out double w_exact, out double p_exact)
+        {
+            u_exact = 0;
+            v_exact = 0;
+            w_exact = 0;
+            p_exact = 0;
         }
     }
 }
