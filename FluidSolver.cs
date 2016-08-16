@@ -716,8 +716,8 @@ namespace FastFluidSolver
                                     w[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] -
                                         omega.boundary_w[i, j, k];
 
-                                    if (omega.boundary_normal_x[i, j, k] == 1 &&
-                                        omega.boundary_normal_z[i, j, k] == 1)
+                                    if (omega.outflow_boundary_x[i, j, k] == 1 &&
+                                        omega.outflow_boundary_z[i, j, k] == 1)
                                     {
                                         u[i, j, k + 1] = u[i - 1, j, k + 1];
                                     }
