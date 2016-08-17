@@ -9,15 +9,16 @@ This is a C# implementation of the fast fluid dynamics algorithm (FFD) described
 ## Code Description
 
 The class `FluidSolver.cs` contains all the functions needed to advance a simulation 1 time step. To initialize it you must provide:
-1.  The initial velocity in each coordinate direction (`u0[, ,]`, `v0[, ,]` and `w0[, ,])
+
+1. The initial velocity in each coordinate direction (`u0[, ,]`, `v0[, ,]` and `w0[, ,])
 2. A domain (inherited from `Domain.cs`) that contains information about the mesh, obstacles and boundary conditions
 3. A time step size
 4. A viscosity
 5. A `solver_struct` that contains:
-    - solver tolerance
-    - maximum and minimum number of iterations
-    - backtrace order (1 or 2)
-    - flag to indicate verbose console output
+    * solver tolerance
+    * maximum and minimum number of iterations
+    * backtrace order (1 or 2)
+    * flag to indicate verbose console output
 
 
 ## Algorithm outline
