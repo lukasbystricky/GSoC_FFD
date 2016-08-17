@@ -10,4 +10,10 @@ This is a C# implementation of the fast fluid dynamics algorithm (FFD) described
 
 FFD solves the incompressible Navier-Stokes equations using a fully implicit projection method. The incompressible Navier-Stokes equations are given by:
 
-<img align="middle" src="img/navier-stokes.png" alt="Navier-Stokes">
+![Navier-Stokes](/img/navier-stokes.png)
+
+There are 3 main steps involved in FFD. Starting at $\mathbf{u}^n approx \mathbf{u}(t_0)$ we solve for $\mathbf{u}^{n+1} \approx \mathbf{u}(t_0 + \delta)$ as follows:
+
+1. Resolve the diffusion term using implicit Euler:
+
+$$\frac{\mathbf{u}^* - \mathbf{u}^n}{\delta} = \nu\Delta\mathbf{u}^*$$
