@@ -10,4 +10,4 @@ This is a C# implementation of the fast fluid dynamics algorithm (FFD) described
 
 FFD solves the incompressible Navier-Stokes equations using a fully implicit projection method. The incompressible Navier-Stokes equations are given by:
 
-![Navier-Stokes](/img/naver-stokes.png)
+![Navier-Stokes](/img/navier-stokes.png)
