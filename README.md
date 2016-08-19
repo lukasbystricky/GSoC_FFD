@@ -1,7 +1,3 @@
-Title: FFD library readme file
-Author: Lukas Bystricky
-Date: August 17th, 2016
-
 # FAST FLUID DYNAMICS LIBRARY
 
 This is a C# implementation of the fast fluid dynamics algorithm (FFD) described by [Jos Stam](http://www.dgp.toronto.edu/people/stam/reality/Research/pdf/ns.pdf). This code has been written as part of the Google Summer of Code with Christoph Waibel of [EMPA](https://www.empa.ch/web/empa/) as a mentor. The goal of this project was to use FFD to quickly analyze in 3D the effects of urban windflow on natural ventilation of buildings. 
@@ -40,7 +36,7 @@ If an exact solution is known, the function `exact_solution(...)` in the base cl
 
 ### `PostProcessor.cs`
 
-The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView] (http://www.paraview.org/). 
+The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView](http://www.paraview.org/). 
 
 ![Lid driven cavity](img/cavity_re100_mag.png)
 
