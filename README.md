@@ -30,25 +30,19 @@ The velocity values are defined on middle of the cell faces normal to their dire
 * `v`: `Nx+2`, `Ny+1`, `Nz+2`
 * `w`: `Nx+2`, `Ny+2`, `Nz+1`
 
-### `Domain.cs
+### `Domain.cs`
 
 The Domain class contains information about the computaional domain such as the domain size, the mesh size, obstacles, boundary conditions and exact solutions (if they exist). As mentioned above, in order to properly handle boundary conditions, there is a layer of ghost cells around the domain. These cells are marked as obstacle cells, even if the boundary is not a physical obstacle (i.e. inflow or outflow). The function `set_ghost_flags()` sets these cells and flags adjacent cells as the appropriate boundary cells when the Domain is constructed. 
 
-The function `add_obstacle(xmin, xmax, ymin, ymax, zmin, zmax)` marks all cells inside the box [`xmin`, `xmax`] X [`ymin`, `ymax`] X [`zmin`, `zmax`] as obstacles and flags adjacent cells as the the appropriate boundary. 
+The function `add_obstacle(xmin, xmax, ymin, ymax, zmin, zmax)` marks all cells inside the box [`xmin`, `xmax`] X [`ymin`, `ymax`] X [`zmin`, `zmax`] as obstacles and flags adjacent cells as the the appropriate boundary.
 
-## Algorithm outline
+If an exact solution is known, the function `exact_solution(...)` in the base class can be overwritten to compute it. This can be used to perform convergence studies.
 
-FFD solves the incompressible Navier-Stokes equations using a fully implicit projection method. The incompressible Navier-Stokes equations are given by:
+### `PostProcessor.cs`
 
-![Navier-Stokes](/img/navier-stokes.png)
+The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView] (http://www.paraview.org/). 
 
-There are 3 main steps involved in FFD. Starting at $\mathbf{u}^n approx \mathbf{u}(t_0)$ we solve for $\mathbf{u}^{n+1} \approx \mathbf{u}(t_0 + \delta)$ as follows:
+![Lid driven cavity](img/cavity_r100_mag.png)
 
-1. Resolve the diffusion term using implicit Euler to get an intermidiate velocity field $\mathbf{u}^*(t_0+\delta)$:
+![Streamlines past buildings](img/flow_multiple_buildings.png)
 
-$$\frac{\mathbf{u}^* - \mathbf{u}^n}{\delta} = \nu\Delta\mathbf{u}^*$$
-
-2. Resolve nonlinear advection term using a semi-Lagrangian approach. Consider a fluid element at each point in space and then trace $\mathbf{u}^*(t+\delta)$ back in time to find where the fluid was at $t=t_0$ (point of departure). Set the velocity of the fluid element to be the velocity of the element at the point of departure:
-
-$$ \mathbf{u}^**(\mathbf{x}, t+\delta) = \mathbf{u}*(P(\mathbf{u}^*), t_0)$$
-where $P(\mathbf{u}^*)$ is a function (for example a linear or second order backtracer) that returns the location of the fluid element at $t=t_0$. 
