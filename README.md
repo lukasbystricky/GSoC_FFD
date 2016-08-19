@@ -38,9 +38,9 @@ If an exact solution is known, the function `exact_solution(...)` in the base cl
 
 The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView](http://www.paraview.org/). 
 
-![Lid driven cavity](img/cavity_re100_mag.png)
+![Lid driven cavity](img/cavity_re100_u.png)![Lid driven cavity](img/cavity_re100_mag.png)
 
-Cross section of velocity magnitude of lid driven cavity at RE=100. 
+Cross section of of `u` velocity and velocity magnitude of lid driven cavity at RE=100. 
 
 ![Streamlines past buildings](img/flow_multiple_buildings.png)
 Streamlines of wind flow past 3 buildings.
