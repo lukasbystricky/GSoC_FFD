@@ -8,7 +8,9 @@ This is a C# implementation of the fast fluid dynamics algorithm (FFD) described
 
 ## Code Description
 
-The class `FluidSolver.cs` contains all the functions needed to advance a simulation 1 time step. To initialize it you must provide:
+### `FluidSolver.cs`
+
+The FluidSolver class contains all the functions needed to advance a simulation 1 time step. To initialize it you must provide:
 
 1. The initial velocity in each coordinate direction (`u0[, ,]`, `v0[, ,]` and `w0[, ,]`)
 2. A domain (inherited from `Domain.cs`) that contains information about the mesh, obstacles and boundary conditions
@@ -20,15 +22,19 @@ The class `FluidSolver.cs` contains all the functions needed to advance a simula
     * backtrace order (1 or 2)
     * flag to indicate verbose console output
 
-Since we are using a staggered grid for our finite difference scheme the sizes of the arrays can be confusing. Let us consider a domain which we wish to split into Nx cells in the x-direction, Ny cells in the y-direction and Nz cells in the z direction. Since we have a layer of ghost cells around our domain, in order to construct such a domain we would need a computational domain with Nx+2, Ny+2 and Nz+2 cells in the x, y and z directions. The centre of each of these cells will contain a pressure value.
+Since we are using a staggered grid for our finite difference scheme the sizes of the arrays can be confusing. Let us consider a domain which we wish to split into `Nx` cells in the x-direction, `Ny` cells in the y-direction and `Nz` cells in the z direction. Since we have a layer of ghost cells around our domain, in order to construct such a domain we would need a computational domain with `Nx+2`, `Ny+2` and `Nz+2` cells in the x, y and z directions. The centre of each of these cells will contain a pressure value.
 
-The velocity values are defined on middle of the cell faces normal to their direction. This means that our initial velocity arrays will have the following sizes:
+The velocity values are defined on middle of the cell faces normal to their direction. This means that our velocity arrays will have the following sizes:
 
-* `u0`: `Nx+1`, `Ny+2`, `Nz+2`
-* `v0`: `Nx+2`, `Ny+1`, `Nz+2`
-* `w0`: `Nx+2`, `Ny+2`, `Nz+1`
+* `u`: `Nx+1`, `Ny+2`, `Nz+2`
+* `v`: `Nx+2`, `Ny+1`, `Nz+2`
+* `w`: `Nx+2`, `Ny+2`, `Nz+1`
 
+### `Domain.cs
 
+The Domain class contains information about the computaional domain such as the domain size, the mesh size, obstacles, boundary conditions and exact solutions (if they exist). As mentioned above, in order to properly handle boundary conditions, there is a layer of ghost cells around the domain. These cells are marked as obstacle cells, even if the boundary is not a physical obstacle (i.e. inflow or outflow). The function `set_ghost_flags()` sets these cells and flags adjacent cells as the appropriate boundary cells when the Domain is constructed. 
+
+The function `add_obstacle(xmin, xmax, ymin, ymax, zmin, zmax)` marks all cells inside the box [`xmin`, `xmax`] X [`ymin`, `ymax`] X [`zmin`, `zmax`] as obstacles and flags adjacent cells as the the appropriate boundary. 
 
 ## Algorithm outline
 
