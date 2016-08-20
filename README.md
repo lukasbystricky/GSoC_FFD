@@ -13,7 +13,7 @@ In the Test folder there are 3 drivers that demonstrate how to set up various si
 
 ![Lid driven cavity](img/cavity_re100_mag.png)![Lid driven cavity](img/cavity_re100_u.png)
 
-Cross section of velocity magnitude of lid driven cavity at RE=100. 
+Cross section of velocity magnitude and x component of velocity for lid driven cavity at RE=100. 
 
 ![Streamlines past buildings](img/flow_multiple_buildings.png)
 Streamlines of wind flow past 3 buildings.
@@ -22,7 +22,7 @@ Streamlines of wind flow past 3 buildings.
 
 In Stam's original implementation (and in numerous others available online) cell centred finite difference was used to discretize the equations. In this implementation however we use staggered grid finite difference, which is the standard finite difference implementation in CFD. This is done to prevent spurious pressure oscillations near the boundary which can occur in cell centred finite diference for the Navier-Stokes equations. This does not change much in the algorithm or solvers, but makes the boundary conditions significantly more complicated. 
 
-The only linear solver implemented is a simple Jacobi solver. This was done for ease of programming, but should be replaced for any serious engineering studies as it converges far too slowly to be useful (see "future work"). 
+The only linear solver implemented is a simple Jacobi solver. This was done for ease of programming and the potential for easy parallelization, but should be replaced for any serious engineering studies as it converges far too slowly to be useful (see "future work"). 
 
 ## Code Description
 
