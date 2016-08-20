@@ -38,7 +38,7 @@ If an exact solution is known, the function `exact_solution(...)` in the base cl
 
 The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView] (http://www.paraview.org/). 
 
-![Lid driven cavity](https://gyazo.com/eb5c5741b6a9a16c692170a41a49c858.png)![Lid driven cavity](https://gyazo.com/eb5c5741b6a9a16c692170a41a49c858.png)
+![Lid driven cavity](img/cavity_re100_mag.png)![Lid driven cavity](img/cavity_re100_u.png)
 
 Cross section of velocity magnitude of lid driven cavity at RE=100. 
 
