@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace FastFluidSolver
-{    
+{
     /// <summary>
     /// Ultilities that are common to multiple classes.
     /// </summary>
@@ -25,7 +25,7 @@ namespace FastFluidSolver
         /// <returns>Interpolated value</returns>
         /// <remarks>Cell number here is the cell number on the underlying grid of the array. 
         /// They can be fractional and do not include ghost cells.</remarks>
-        public static double trilinear_interpolation(double x, double y, double z, 
+        public static double trilinear_interpolation(double x, double y, double z,
                     double[, ,] array)
         {
             int imin = Math.Max(Math.Min((int)Math.Floor(x - EPS), array.GetLength(0) - 1), 0);
@@ -180,7 +180,7 @@ namespace FastFluidSolver
                         double y = j * omega.hy;
                         double z = k * omega.hz;
 
-                        double[] coordinate = new double[] {x,y,z};
+                        double[] coordinate = new double[] { x, y, z };
 
                         double[] velocity_interp = de.get_velocity(x, y, z);
 
@@ -194,7 +194,7 @@ namespace FastFluidSolver
                             case 1:
                                 comp_interp[i, j, k] = de.get_pressure(x, y, z);
                                 err_array[i, j, k] = Math.Abs(de.get_pressure(x, y, z) - p_exact);
-                                 break;
+                                break;
 
                             case 2:
                                 comp_interp[i, j, k] = velocity_interp[0];
@@ -218,6 +218,6 @@ namespace FastFluidSolver
 
             err_l2 = Utilities.compute_L2_difference(err_array, zeros); //L2 norm of errors
             err_inf = err_array.Cast<double>().Max();
-}
+        }
     }
 }

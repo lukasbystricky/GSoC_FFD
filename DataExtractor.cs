@@ -5,18 +5,34 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace FastFluidSolver
+
+/// <summary>
+/// Extracts velocity and pressure from an FFD simulation
+/// </summary>
 {
     public class DataExtractor
     {
         private Domain omega;
         private FluidSolver fs;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="omega">Domain</param>
+        /// <param name="fs">FFD simulation</param>
         public DataExtractor(Domain omega, FluidSolver fs)
         {
             this.omega = omega;
             this.fs = fs;
         }
 
+        /// <summary>
+        /// Calculate the pressure at a point (x,y,z)
+        /// </summary>
+        /// <param name="x">x coordinate</param>
+        /// <param name="y">x coordinate</param>
+        /// <param name="z">x coordinate</param>
+        /// <returns>pressure</returns>
         public double get_pressure(double x, double y, double z)
         {
             double x_scaled = x / omega.hx;
@@ -27,6 +43,13 @@ namespace FastFluidSolver
                                     y_scaled + 0.5, z_scaled + 0.5, fs.p);
         }
 
+        /// <summary>
+        /// Calculate the velocity (u,v,w) at a point (x,y,z)
+        /// </summary>
+        /// <param name="x">x coordinate</param>
+        /// <param name="y">x coordinate</param>
+        /// <param name="z">x coordinate</param>
+        /// <returns>velocity (u,v,w)</returns>
         public double[] get_velocity(double x, double y, double z)
         {
             double[] velocity = new double[3];
