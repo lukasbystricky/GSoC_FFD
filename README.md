@@ -36,12 +36,22 @@ If an exact solution is known, the function `exact_solution(...)` in the base cl
 
 ### `PostProcessor.cs`
 
-The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView](http://www.paraview.org/). 
+The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView] (http://www.paraview.org/). 
 
-![Lid driven cavity](img/cavity_re100_u.png)![Lid driven cavity](img/cavity_re100_mag.png)
+![Lid driven cavity](https://gyazo.com/eb5c5741b6a9a16c692170a41a49c858.png)![Lid driven cavity](https://gyazo.com/eb5c5741b6a9a16c692170a41a49c858.png)
 
-Cross section of of `u` velocity and velocity magnitude of lid driven cavity at RE=100. 
+Cross section of velocity magnitude of lid driven cavity at RE=100. 
 
 ![Streamlines past buildings](img/flow_multiple_buildings.png)
 Streamlines of wind flow past 3 buildings.
+
+## Future Work
+
+# Improved linear solvers
+
+In many existing implementations of FFD, an simple iterative solvers like Jacobi, Gauss-Seidel or Successive over-relaxation were used. This implementation uses a Jacobi solver because of the fact that it is easy to implement and easy to parallelize. Unfortunately this solver converges very slowly. This may not have been an issue for video game applications since accuracy isn't necessarily important, but for engineering applications on large domains this can be a big problem. A conjugate gradient solver would be much better suited for this problem, but slightly more difficult to implement. 
+
+# Boussinesq approximation
+
+In urban windflow, buoyancy effects are known to be very important. An extension of this model could implement the Boussinesq approximation to account for buoyancy. 
 
