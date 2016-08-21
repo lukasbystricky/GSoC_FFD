@@ -16,19 +16,20 @@ namespace FastFluidSolver
         {
             const double EPS = 1e-8;
 
-            //This test varies dt while keeping N fixed
-            //int[] N = new int[] { 4, 8, 16, 32, 64};            
+            // This test varies dt and viscosity while keeping N fixed          
             int N = 64;
             double[] dt = new double[] {  1.0/50, 1.0/100, 1.0/200, 1.0/400};
             double[] nu = new double[] { 1, 0.1, 0.01, 0.001 };
 
             String fname = "convergence_h64_t.txt";                   
 
+            // Constants needed for exact solution
             double a = 1.25;
             double d = 2.25;
 
             double tf = 1.0 / 10;
 
+            // Create structure for solver parameters
             FluidSolver.solver_struct solver_prams = new FluidSolver.solver_struct();
 
             solver_prams.tol = 1e-5;
@@ -43,6 +44,7 @@ namespace FastFluidSolver
                 for (int r = 0; r < nu.Length; r++)
                 {
                     sw.WriteLine("nu = {0}", nu[r]);
+
                     // Loop over time step sizes
                     for (int n = 0; n < dt.Length; n++)
                     {
@@ -121,9 +123,10 @@ namespace FastFluidSolver
                             }
                         }
 
-
+                        // Create domain
                         EthierSteinmanDomain omega = new EthierSteinmanDomain(Nx + 2, Ny + 2, Nz + 2, nu[r], a, d);
 
+                        // Create FFD solver
                         FluidSolver ffd = new FluidSolver(omega, dt[n], nu[r], u0, v0, w0, solver_prams);
                         
                         /********************************************************************************
@@ -135,6 +138,7 @@ namespace FastFluidSolver
 
                             Console.WriteLine("Time t = {0}", t);
 
+                            // Update boundary conditions and solve single time step
                             omega.update_boundary_conditions(t);
                             ffd.time_step(f_x, f_y, f_z);
                         }
