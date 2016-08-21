@@ -64,7 +64,7 @@ The PostProcessor class contains routines to export the data (velocity, pressure
 
 ### Improved linear solvers
 
-In many existing implementations of FFD, simple iterative solvers like Jacobi, Gauss-Seidel or Successive over-relaxation were used. This implementation uses a Jacobi solver because of the fact that it is easy to implement and easy to parallelize. Unfortunately this solver converges very slowly. This may not have been an issue for video game applications since accuracy isn't necessarily important, but for engineering applications on large domains this can be a big problem. A conjugate gradient solver would be much better suited for this problem. 
+In many existing implementations of FFD, simple iterative solvers like Jacobi, Gauss-Seidel or Successive over-relaxation were used. This implementation uses a Jacobi solver because of the fact that it is easy to implement and easy to parallelize. Unfortunately this solver converges very slowly. This may not have been an issue for video game applications since accuracy isn't necessarily important, but for engineering applications on large domains this can be a big problem. A conjugate gradient or multigrid solver would perform much better. 
 
 ### Boussinesq approximation
 
