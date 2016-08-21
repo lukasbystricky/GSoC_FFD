@@ -20,9 +20,9 @@ Streamlines of wind flow past 3 buildings.
 
 ## Notes on Implementation
 
-In Stam's original implementation (and in numerous others available online) cell centred finite difference was used to discretize the equations. In this implementation however we use staggered grid finite difference, which is the standard finite difference implementation in CFD. This is done to prevent spurious pressure oscillations near the boundary which can occur in cell centred finite diference for the Navier-Stokes equations. This does not change much in the algorithm or solvers, but makes the boundary conditions significantly more complicated. 
+In Stam's original implementation (and in numerous others available online) cell centred finite difference is used to discretize the equations. In this implementation however we use staggered grid finite difference, which is the standard finite difference implementation in CFD. This is done to prevent spurious pressure oscillations near the boundary which can occur in cell centred finite diference for the Navier-Stokes equations. This does not change much in the algorithm or solvers, but makes enforcing the boundary conditions significantly more complicated. 
 
-The only linear solver implemented is a simple Jacobi solver. This was done for ease of programming and the potential for easy parallelization, but should be replaced for any serious engineering studies as it converges far too slowly to be useful (see "future work"). 
+The only linear solver implemented is a simple Jacobi solver, as was the case in Stam's original implementation. This was done for ease of programming and the potential for easy parallelization, but should be replaced for any serious engineering studies as it converges far too slowly to be useful (see "future work"). 
 
 ## Code Description
 
@@ -59,6 +59,14 @@ If an exact solution is known, the function `exact_solution(...)` in the base cl
 ### `PostProcessor.cs`
 
 The PostProcessor class contains routines to export the data (velocity, pressure, errors, geometry information) to [VTK](http://www.vtk.org/) files. This data can then be analyzed or plotted using such programs as [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit/) or [ParaView] (http://www.paraview.org/). 
+
+### `Utlilities.cs`
+
+The Utilities class is a static class that contains general routines that may be used by multiple classes. These are:
+* trilinear interpolation
+* L2 difference between vectors
+* L2 and L-infinity error calculation
+* check if point inside obstacle/ghost cell
 
 ## Future Work
 
