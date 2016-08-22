@@ -4,8 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/*
+ * BuildingSimulation.cs
+ * Copyright 2016 Lukas Bystricky <lb13f@my.fsu.edu>
+ *
+ * This work is licensed under the GNU GPL license version 2 or later.
+ */
+ 
 namespace FastFluidSolver
 {
+    /// <summary>
+    /// Driver to simulate wind flow around 3 buildings.
+    /// </summary>
     class BuildingSimulation
     {
         static void Main()

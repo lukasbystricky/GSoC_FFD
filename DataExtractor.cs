@@ -4,12 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/*
+ * DataExtractor.cs
+ * Copyright 2016 Lukas Bystricky <lb13f@my.fsu.edu>
+ *
+ * This work is licensed under the GNU GPL license version 2 or later.
+ */
+ 
 namespace FastFluidSolver
-
-/// <summary>
-/// Extracts velocity and pressure from an FFD simulation
-/// </summary>
 {
+    /// <summary>
+    /// Extracts velocity and pressure from an FFD simulation
+    /// </summary>
     public class DataExtractor
     {
         private Domain omega;

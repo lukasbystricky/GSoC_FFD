@@ -5,6 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
+/*
+ * FluidSolver.cs
+ * Copyright 2016 Lukas Bystricky <lb13f@my.fsu.edu>
+ *
+ * This work is licensed under the GNU GPL license version 2 or later.
+ */
+ 
 namespace FastFluidSolver
 {
     /// <summary>
@@ -202,6 +209,8 @@ namespace FastFluidSolver
             c[5] = c[0];
 
             jacobi_solve(a, c, b, x_old, ref x_new, grid_type);
+
+            apply_bc(grid_type, ref x_new);
         }
 
         /// <summary>
@@ -210,7 +219,7 @@ namespace FastFluidSolver
         /// </summary>
         void project()
         {
-            double[, ,] div = new double[Nx - 1, Ny - 1, Nz - 1];
+            double[, ,] div = new double[Nx, Ny, Nz];
 
             // Calculate div(u_old) using finite differences
             for (int i = 0; i < Nx; i++)
@@ -300,7 +309,10 @@ namespace FastFluidSolver
                 }
             }
 
-            apply_boundary_conditions();
+            apply_bc(1, ref p);
+            apply_bc(2, ref u);
+            apply_bc(3, ref v);
+            apply_bc(4, ref w);
         }
 
         /// <summary>
@@ -421,7 +433,352 @@ namespace FastFluidSolver
                 }
             }
 
-            apply_boundary_conditions();
+            apply_bc(1, ref p);
+            apply_bc(2, ref u);
+            apply_bc(3, ref v);
+            apply_bc(4, ref w);
+        }
+
+
+        void apply_bc(int grid_type, ref double[, ,] x)
+        {
+            int Sx = x.GetLength(0);
+            int Sy = x.GetLength(1);
+            int Sz = x.GetLength(2);
+
+            int starti, startj, startk, endi, endj, endk;
+            starti = startj = startk = endi = endj = endk = 0;
+
+            switch (grid_type)
+            {
+                case 1:
+                    starti = 1;
+                    endi = Sx - 1;
+                    startj = 1;
+                    endj = Sy - 1;
+                    startk = 1;
+                    endk = Sz - 1;
+                    break;
+
+                case 2:
+                    starti = 0;
+                    endi = Sx;
+                    startj = 1;
+                    endj = Sy - 1;
+                    startk = 1;
+                    endk = Sz - 1;
+                    break;
+
+                case 3:
+                    starti = 1;
+                    endi = Sx - 1;
+                    startj = 0;
+                    endj = Sy;
+                    startk = 1;
+                    endk = Sz - 1;
+                    break;
+
+                case 4:
+                    starti = 1;
+                    endi = Sx - 1;
+                    startj = 1;
+                    endj = Sy - 1;
+                    startk = 0;
+                    endk = Sz;
+                    break;
+            }
+
+            for (int i = starti; i < endi; i++)
+            {
+                for (int j = startj; j < endj; j++)
+                {
+                    for (int k = startk; k < endk; k++)
+                    {
+                        switch (grid_type)
+                        {
+                            case 1://p grid - homogeneous Neumann boundary conditions
+
+                                //x face
+                                if (omega.boundary_normal_x[i, j, k] == 1)
+                                {
+                                    p[i + 1, j, k] = p[i, j, k];
+                                }
+
+                                if (omega.boundary_normal_x[i, j, k] == -1)
+                                {
+                                    p[i - 1, j, k] = p[i, j, k];
+                                }
+
+                                //y face
+                                if (omega.boundary_normal_y[i, j, k] == 1)
+                                {
+                                    p[i, j + 1, k] = p[i, j, k];
+                                }
+
+                                if (omega.boundary_normal_y[i, j, k] == -1)
+                                {
+                                    p[i, j - 1, k] = p[i, j, k];
+                                }
+
+                                //z face
+                                if (omega.boundary_normal_z[i, j, k] == 1)
+                                {
+                                    p[i, j, k + 1] = p[i, j, k];
+                                }
+
+                                if (omega.boundary_normal_z[i, j, k] == -1)
+                                {
+                                    p[i, j, k - 1] = p[i, j, k];
+                                }
+
+                                break;
+
+                            case 2://u grid
+
+                                //x face appply directly from boundary conditions
+                                if (omega.boundary_normal_x[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+
+                                        x[i, j, k] = omega.boundary_u[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i - 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_x[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+
+                                        x[i - 1, j, k] = omega.boundary_u[i - 1, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i + 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                //y face
+                                if (omega.boundary_normal_y[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+                                        x[i, j + 1, k] = 2 * omega.boundary_u[i, j + 1, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j + 1, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_y[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+                                        x[i, j - 1, k] = 2 * omega.boundary_u[i, j - 1, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j - 1, k] = x[i, j, k];
+                                    }
+                                }
+
+                                //z face
+                                if (omega.boundary_normal_z[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+                                        x[i, j, k + 1] = 2 * omega.boundary_u[i, j, k + 1] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k + 1] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_z[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+                                        x[i, j, k - 1] = 2 * omega.boundary_u[i, j, k - 1] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k - 1] = x[i, j, k];
+                                    }
+                                }
+
+                                break;
+
+                            case 3://v grid
+
+                                //y face, apply directly from boundary conditions
+                                if (omega.boundary_normal_y[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+
+                                        x[i, j, k] = omega.boundary_v[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j - 1, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_y[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+
+                                        x[i, j - 1, k] = omega.boundary_v[i, j - 1, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j + 1, k] = x[i, j, k];
+                                    }
+                                }
+
+                                //x face
+                                if (omega.boundary_normal_x[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+                                        x[i + 1, j, k] = 2 * omega.boundary_v[i + 1, j, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i + 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_x[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+                                        x[i - 1, j, k] = 2 * omega.boundary_v[i - 1, j, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i - 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                //z face
+                                if (omega.boundary_normal_z[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+                                        x[i, j, k + 1] = 2 * omega.boundary_v[i, j, k + 1] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k + 1] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_z[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+                                        x[i, j, k - 1] = 2 * omega.boundary_v[i, j, k - 1] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k - 1] = x[i, j, k];
+                                    }
+                                }
+
+                                break;
+
+                            case 4://w grid
+
+                                //z face, apply directly from boundary conditions
+                                if (omega.boundary_normal_z[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+
+                                        x[i, j, k] = omega.boundary_w[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k - 1] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_z[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_z[i, j, k] == 0)
+                                    {
+
+                                        x[i, j, k - 1] = omega.boundary_w[i, j, k - 1];
+                                    }
+                                    else
+                                    {
+                                        x[i, j, k] = x[i, j, k + 1];
+                                    }
+                                }
+
+                                //x face
+                                if (omega.boundary_normal_x[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+                                        x[i + 1, j, k] = 2 * omega.boundary_w[i + 1, j, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i + 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_x[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_x[i, j, k] == 0)
+                                    {
+                                        x[i - 1, j, k] = 2 * omega.boundary_w[i - 1, j, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i - 1, j, k] = x[i, j, k];
+                                    }
+                                }
+
+                                //y face
+                                if (omega.boundary_normal_y[i, j, k] == 1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+                                        x[i, j + 1, k] = 2 * omega.boundary_w[i, j + 1, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j + 1, k] = x[i, j, k];
+                                    }
+                                }
+
+                                if (omega.boundary_normal_y[i, j, k] == -1)
+                                {
+                                    if (omega.outflow_boundary_y[i, j, k] == 0)
+                                    {
+                                        x[i, j - 1, k] = 2 * omega.boundary_w[i, j - 1, k] - x[i, j, k];
+                                    }
+                                    else
+                                    {
+                                        x[i, j - 1, k] = x[i, j, k];
+                                    }
+                                }
+                                break;
+
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1094,7 +1451,10 @@ namespace FastFluidSolver
         /// <param name="f_z">z component of forcing term</param>
         public void time_step(double[, ,] f_x, double[, ,] f_y, double[, ,] f_z)
         {
-            apply_boundary_conditions();
+            apply_bc(1, ref p);
+            apply_bc(2, ref u);
+            apply_bc(3, ref v);
+            apply_bc(4, ref w);
 
             add_force(f_x, ref u);
             add_force(f_y, ref v);
@@ -1147,18 +1507,17 @@ namespace FastFluidSolver
             double res = 2 * solver_prams.tol;
 
             double[] coordinate = new double[3];
-
             
             while (iter < solver_prams.min_iter || 
                 (iter < solver_prams.max_iter && res > solver_prams.tol))
             {
-                if (grid_type == 1)
+                /*if (grid_type == 1)
                 {
                     x1[3, 3, 3] = 0;
                     x0[3, 3, 3] = 0;
-                }
+                }*/
 
-                apply_boundary_conditions();
+                apply_bc(grid_type, ref x0);
 
                 for (int k = 1; k < Sz - 1; k++)
                 {
@@ -1195,7 +1554,7 @@ namespace FastFluidSolver
 
                             if (Utilities.in_domain(coordinate, omega)) 
                             {
-                                if (grid_type != 1 || !( i == 3 && j == 3 && k == 3))
+                                //if (grid_type != 1 || !( i == 3 && j == 3 && k == 3))
                                 {
                                     x1[i, j, k] = (b[i, j, k] - (c[0] * x0[i, j, k - 1] +
                                         c[1] * x0[i, j - 1, k] + c[2] * x0[i - 1, j, k] +
@@ -1207,6 +1566,8 @@ namespace FastFluidSolver
                     }
                 }
 
+                apply_bc(grid_type, ref x1);
+
                 res = Utilities.compute_L2_difference(x0, x1);
                 iter++;
 
@@ -1217,6 +1578,305 @@ namespace FastFluidSolver
             {
                 Console.WriteLine("Jacobi solver completed with residual of {0} in {1} iterations", 
                     res, iter);
+            }
+        }
+
+        void sor_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1, 
+                    int grid_type, double relax)
+        {
+            int Sx = x0.GetLength(0);
+            int Sy = x0.GetLength(1);
+            int Sz = x0.GetLength(2);
+
+            int iter = 0;
+            double res = 2 * solver_prams.tol;
+
+            double[] coordinate = new double[3];
+
+            while (iter < solver_prams.min_iter ||
+                (iter < solver_prams.max_iter && res > solver_prams.tol))
+            {
+                apply_bc(grid_type, ref x0);
+                apply_bc(grid_type, ref x1);
+
+                if (grid_type == 1)
+                {
+                    x0[2, 2, 2] = 0;
+                    x1[2, 2, 2] = 0;
+                }
+
+                for (int i = 1; i < Sx - 1; i++)
+                {
+                    for (int j = 1; j < Sy - 1; j++)
+                    {
+                        for (int k = 1; k < Sz - 1; k++)
+                        {
+                            switch (grid_type)
+                            {
+                                case 1:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 2:
+                                    coordinate[0] = i * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 3:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = j * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 4:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = k * hz;
+                                    break;
+                            }
+
+                            if (Utilities.in_domain(coordinate, omega))
+                            {
+                                if (grid_type != 1 || !( i == 2 && j == 2 && k == 2))
+                                {
+                                    x1[i, j, k] = (1 - relax) * x0[i, j, k] + relax * (b[i, j, k] - (c[0] * x1[i, j, k - 1] +
+                                        c[1] * x1[i, j - 1, k] + c[2] * x1[i - 1, j, k] +
+                                        c[3] * x0[i + 1, j, k] + c[4] * x0[i, j + 1, k] +
+                                        c[5] * x0[i, j, k + 1])) / a;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                apply_bc(grid_type, ref x1);
+
+                res = Utilities.compute_L2_difference(x0, x1);
+                iter++;
+
+                Array.Copy(x1, 0, x0, 0, x1.Length);
+            }
+
+            if (solver_prams.verbose)
+            {
+                Console.WriteLine("SOR solver completed with residual of {0} in {1} iterations",
+                    res, iter);
+            }
+        }
+
+        /// <summary>
+        /// Solves the sparse banded systems arising from the Poisson or diffusion equation using the
+        /// conjugate gradient method.
+        /// </summary>
+        /// <param name="a">coefficient for diagonal entry</param>
+        /// <param name="c">coefficint array other 6 non-zero entries in each row</param>
+        /// <param name="b">right hand side</param>
+        /// <param name="x0">initial guess</param>
+        /// <param name="x1">solution</param>
+        /// <param name="grid_type">grid type as described in diffusion method</param>
+        /// <remarks>The coefficients for the 6 nonzero entries in each row are given in the 
+        /// order x[i,j,k-1], x[i,j-1,k], x[i-1,j,k], x[i+1,j,k], x[i,j+1,k, x[i,j,k+1]</remarks>
+        void cg_solve(double a, double[] c, double[, ,] b, double[, ,] x0, ref double[, ,] x1, int grid_type)
+        {
+            int Sx = x0.GetLength(0);
+            int Sy = x0.GetLength(1);
+            int Sz = x0.GetLength(2);            
+
+            double[, ,] r0, r1, p1,Ad;
+            double[, ,] p0 = new double[Sx, Sy, Sz];
+            double[, ,] zeros = new double[Sx, Sy, Sz];
+
+            double alpha, beta;
+
+            matvec_mult(a, c, x0, out Ad, grid_type);
+            vector_addsub(b, Ad, out r0, false);
+
+            Array.Copy(r0, 0, p0, 0, p0.Length);
+
+            double r_norm = Utilities.compute_L2_difference(r0, zeros);
+
+            int iter = 0;
+
+            while (iter < solver_prams.max_iter && r_norm > solver_prams.tol)
+            {
+                matvec_mult(a, c, p0, out Ad, grid_type);
+                alpha = inner_product(r0, r0) / inner_product(p0, Ad);
+
+                vector_scalar_mult(ref p0, alpha);
+                vector_addsub(x0, p0, out x1, true);
+
+                matvec_mult(a, c, p0, out Ad, grid_type);
+                vector_addsub(r0, Ad, out r1, false);
+                r_norm = Utilities.compute_L2_difference(r1, zeros);
+
+                beta = inner_product(r1, r1) / inner_product(r0, r0);
+                vector_scalar_mult(ref p0, beta/alpha);
+
+                vector_addsub(r1, p0, out p1, true);
+
+                Array.Copy(p1, 0, p0, 0, p0.Length);
+                Array.Copy(r1, 0, r0, 0, r0.Length);
+                Array.Copy(x1, 0, x0, 0, x0.Length);
+
+                iter++;
+            }
+
+            if (solver_prams.verbose)
+            {
+                Console.WriteLine("Conjugate gradient solver completed with residual of {0} in {1} iterations",
+                    r_norm, iter);
+            }
+        }
+
+        /// <summary>
+        /// Multiplies a sparse banded matrix by a vector
+        /// </summary>
+        /// <param name="a">coefficient for diagonal entry</param>
+        /// <param name="c">coefficint array other 6 non-zero entries in each row</param>
+        /// <param name="b">right hand side</param>
+        /// <param name="product">A*b</param>
+        void matvec_mult(double a, double[] c, double[, ,] b, out double[, ,] product, int grid_type)
+        {
+            int Sx = b.GetLength(0);
+            int Sy = b.GetLength(1);
+            int Sz = b.GetLength(2);
+
+            double[] coordinate = new double[3];
+
+            product = new double[Sx, Sy, Sz];
+
+            for (int i = 0; i < Sx; i++)
+            {
+                for (int j = 0; j < Sy; j++)
+                {
+                    for (int k = 0; k < Sz; k++)
+                    {
+                        switch (grid_type)
+                            {
+                                case 1:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 2:
+                                    coordinate[0] = i * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 3:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = j * hy;
+                                    coordinate[2] = (k - 0.5) * hz;
+                                    break;
+
+                                case 4:
+                                    coordinate[0] = (i - 0.5) * hx;
+                                    coordinate[1] = (j - 0.5) * hy;
+                                    coordinate[2] = k * hz;
+                                    break;
+                            }
+
+                        if (Utilities.in_domain(coordinate, omega) && 
+                            (grid_type != 1 || !( i == 3 && j == 3 && k == 3)))
+                        {
+                            product[i, j, k] = a * b[i, j, k];
+
+                            if (k > 1)
+                                product[i, j, k] += c[0] * b[i, j, k - 1];
+
+                            if (j > 1)
+                                product[i, j, k] += c[1] * b[i, j - 1, k];
+
+                            if (i > 1)
+                                product[i, j, k] += c[2] * b[i - 1, j, k];
+
+                            if (i < Sx - 1)
+                                product[i, j, k] += c[3] * b[i + 1, j, k];
+
+                            if (j < Sy - 1)
+                                product[i, j, k] += c[4] * b[i, j + 1, k];
+
+                            if (k < Sz - 1)
+                                product[i, j, k] += c[5] * b[i, j, k + 1];
+                        }
+                        else
+                        {
+                            product[i, j, k] = b[i, j, k];
+                        }
+                    }
+                }
+            }
+
+            apply_bc(grid_type, ref product);
+        }
+
+        /// <summary>
+        /// Computes inner product of two vectors defined on a 3d grid
+        /// </summary>
+        /// <param name="x1"></param>
+        /// <param name="x2"></param>
+        /// <returns></returns>
+        double inner_product(double[, ,] x1, double[, ,] x2)
+        {
+            double prod = 0;
+
+            for (int i = 0; i < x1.GetLength(0); i++)
+            {
+                for (int j = 0; j < x1.GetLength(1); j++)
+                {
+                    for (int k = 0; k < x1.GetLength(2); k++)
+                    {
+                        prod += x1[i, j, k] * x2[i, j, k];
+                    }
+                }
+            }
+
+            return prod;
+        }
+
+        void vector_scalar_mult(ref double[, ,] x, double alpha)
+        {
+            for (int i = 0; i < x.GetLength(0); i++)
+            {
+                for (int j = 0; j < x.GetLength(1); j++)
+                {
+                    for (int k = 0; k < x.GetLength(2); k++)
+                    {
+                        x[i, j, k] *= alpha;
+                    }
+                }
+            }
+        }
+
+        void vector_addsub(double[, ,] x1, double[, ,] x2, out double[, ,] result, bool addition)
+        {
+            int Sx = x1.GetLength(0);
+            int Sy = x1.GetLength(1);
+            int Sz = x1.GetLength(2);
+
+            result = new double[Sx, Sy, Sz];
+
+            for (int i = 0; i < x1.GetLength(0); i++)
+            {
+                for (int j = 0; j < x1.GetLength(1); j++)
+                {
+                    for (int k = 0; k < x1.GetLength(2); k++)
+                    {
+                        if (addition)
+                        {
+                            result[i, j, k] = x1[i, j, k] + x2[i, j, k];
+                        }
+                        else
+                        {
+                            result[i, j, k] = x1[i, j, k] - x2[i, j, k];
+                        }
+                    }
+                }
             }
         }
     }
