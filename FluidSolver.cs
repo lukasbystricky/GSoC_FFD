@@ -2,6 +2,7 @@
 using MathNet.Numerics.LinearAlgebra.Storage;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -1303,6 +1304,9 @@ namespace FastFluidSolver
         /// order x[i,j,k-1], x[i,j-1,k], x[i-1,j,k], x[i+1,j,k], x[i,j+1,k, x[i,j,k+1]</remarks>
         private void jacobi_solve(double a, double[] c, double[,,] b, double[,,] x0, ref double[,,] x1, int grid_type)
         {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+
             int Sx = x0.GetLength(0);
             int Sy = x0.GetLength(1);
             int Sz = x0.GetLength(2);
@@ -1376,10 +1380,13 @@ namespace FastFluidSolver
                 Array.Copy(x1, 0, x0, 0, x1.Length);
             }
 
+            stopWatch.Stop();
+            TimeSpan ts = stopWatch.Elapsed;
+
             if (solver_prams.verbose)
             {
-                Console.WriteLine("Jacobi solver completed with residual of {0} in {1} iterations",
-                    res, iter);
+                Console.WriteLine("Jacobi solver completed with residual of {0} in {1} iterations in {2} seconds",
+                    res, iter, ts.TotalSeconds);
             }
         }
     }
