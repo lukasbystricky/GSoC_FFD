@@ -60,8 +60,8 @@ namespace FastFluidSolver
                     boundary_normal_x[1, j, k] = -1;
                     boundary_normal_x[Nx - 2, j, k] = 1;
 
-                    normal_x_list.Add(new int[] { 1, j, k, -1});
-                    normal_x_list.Add(new int[] { Nx - 2, j, k , 1});
+                    normal_x_list.Add(new int[] { 1, j, k, -1 });
+                    normal_x_list.Add(new int[] { Nx - 2, j, k, 1 });
                 }
             }
 
@@ -188,12 +188,12 @@ namespace FastFluidSolver
         public void add_obstacle(double xmin, double xmax, double ymin, double ymax,
                 double zmin, double zmax)
         {
-            int i_start = (int)Math.Floor(xmin * (Nx - 2) / length_x);
-            int i_end = (int)Math.Floor(xmax * (Nx - 2) / length_x);
-            int j_start = (int)Math.Floor(ymin * (Ny - 2) / length_y);
-            int j_end = (int)Math.Floor(ymax * (Ny - 2) / length_y);
-            int k_start = (int)Math.Floor(zmin * (Nz - 2) / length_z);
-            int k_end = (int)Math.Floor(zmax * (Nz - 2) / length_z);
+            int i_start = (int)Math.Floor(xmin * (Nx - 1) / length_x);
+            int i_end = (int)Math.Floor(xmax * (Nx - 1) / length_x);
+            int j_start = (int)Math.Floor(ymin * (Ny - 1) / length_y);
+            int j_end = (int)Math.Floor(ymax * (Ny - 1) / length_y);
+            int k_start = (int)Math.Floor(zmin * (Nz - 1) / length_z);
+            int k_end = (int)Math.Floor(zmax * (Nz - 1) / length_z);
 
             for (int i = i_start; i < i_end; i++)
             {
