@@ -83,7 +83,7 @@ namespace FastFluidSolver
                     boundary_normal_y[i, Ny - 2, k] = 1;
 
                     normal_y_list.Add(new int[] { i, 1, k, -1 });
-                    normal_y_list.Add(new int[] { i, Ny - 1, k, 1 });
+                    normal_y_list.Add(new int[] { i, Ny - 2, k, 1 });
                 }
             }
 
@@ -105,7 +105,7 @@ namespace FastFluidSolver
                     boundary_normal_z[i, j, Nz - 2] = 1;
 
                     normal_z_list.Add(new int[] { i, j, 1, -1 });
-                    normal_z_list.Add(new int[] { i, j, Nz - 1, 1 });
+                    normal_z_list.Add(new int[] { i, j, Nz - 2, 1 });
                 }
             }
         }
@@ -188,12 +188,12 @@ namespace FastFluidSolver
         public void add_obstacle(double xmin, double xmax, double ymin, double ymax,
                 double zmin, double zmax)
         {
-            int i_start = (int)Math.Floor(xmin * (Nx - 1) / length_x);
-            int i_end = (int)Math.Floor(xmax * (Nx - 1) / length_x);
-            int j_start = (int)Math.Floor(ymin * (Ny - 1) / length_y);
-            int j_end = (int)Math.Floor(ymax * (Ny - 1) / length_y);
-            int k_start = (int)Math.Floor(zmin * (Nz - 1) / length_z);
-            int k_end = (int)Math.Floor(zmax * (Nz - 1) / length_z);
+            int i_start = (int)Math.Floor(xmin * (Nx - 2) / length_x);
+            int i_end = (int)Math.Floor(xmax * (Nx - 2) / length_x);
+            int j_start = (int)Math.Floor(ymin * (Ny - 2) / length_y);
+            int j_end = (int)Math.Floor(ymax * (Ny - 2) / length_y);
+            int k_start = (int)Math.Floor(zmin * (Nz - 2) / length_z);
+            int k_end = (int)Math.Floor(zmax * (Nz - 2) / length_z);
 
             for (int i = i_start; i < i_end; i++)
             {
@@ -201,8 +201,8 @@ namespace FastFluidSolver
                 {
                     for (int k = k_start; k < k_end; k++)
                     {
-                        obstacle_cells[i, j, k] = 1;
-                        obstacle_list.Add(new int[] { i, j, k });
+                        obstacle_cells[i + 1, j + 1, k + 1] = 1;
+                        //obstacle_list.Add(new int[] { i, j, k });
                     }
                 }
             }
